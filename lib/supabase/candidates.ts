@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CandidateStatus, DiscoveryJob, DuplicateStatus, FirmCandidate } from "@/lib/types";
+import type { CandidateContact, CandidateStatus, ContactFieldStatus, ContactResearchStatus, DiscoveryJob, DuplicateStatus, FirmCandidate } from "@/lib/types";
 
 export type FirmCandidateRow = {
   id: string;
@@ -25,6 +25,30 @@ export type FirmCandidateRow = {
   resulting_firm_id: string | null;
   created_at: string;
   reviewed_at: string | null;
+  contact_research_status: ContactResearchStatus;
+  contact_researched_at: string | null;
+};
+
+export type CandidateContactRow = {
+  id: string;
+  firm_candidate_id: string;
+  provider: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string | null;
+  title: string | null;
+  role_category: string | null;
+  email: string | null;
+  email_status: ContactFieldStatus;
+  direct_phone: string | null;
+  phone_status: ContactFieldStatus;
+  linkedin_url: string | null;
+  confidence: "High" | "Medium" | "Low";
+  is_primary_contact: boolean;
+  is_decision_maker: boolean;
+  selected_for_approval: boolean;
+  source_url: string | null;
+  created_at: string;
 };
 
 type DiscoveryJobRow = {
@@ -81,6 +105,32 @@ export function mapCandidateRow(row: FirmCandidateRow): FirmCandidate {
     resultingFirmId: row.resulting_firm_id ?? undefined,
     reviewedAt: row.reviewed_at ?? undefined,
     createdAt: row.created_at.slice(0, 10),
+    contactResearchStatus: row.contact_research_status,
+    contactResearchedAt: row.contact_researched_at ?? undefined,
+  };
+}
+
+export function mapCandidateContactRow(row: CandidateContactRow): CandidateContact {
+  return {
+    id: row.id,
+    candidateId: row.firm_candidate_id,
+    firstName: row.first_name ?? "",
+    lastName: row.last_name ?? "",
+    fullName: row.full_name ?? "",
+    title: row.title ?? "",
+    roleCategory: row.role_category ?? "",
+    email: row.email ?? "",
+    emailStatus: row.email_status,
+    directPhone: row.direct_phone ?? "",
+    phoneStatus: row.phone_status,
+    linkedin: row.linkedin_url ?? "",
+    confidence: row.confidence,
+    isPrimary: row.is_primary_contact,
+    isDecisionMaker: row.is_decision_maker,
+    selectedForApproval: row.selected_for_approval,
+    source: row.provider,
+    sourceUrl: row.source_url ?? "",
+    createdAt: row.created_at,
   };
 }
 
@@ -143,4 +193,40 @@ export async function fetchDiscoveryJobs(supabase: SupabaseClient): Promise<Disc
     .returns<DiscoveryJobRow[]>();
   if (error) throw new Error(error.message);
   return (data ?? []).map(mapJobRow);
+}
+
+export async function fetchCandidateContacts(supabase: SupabaseClient, candidateId: string): Promise<CandidateContact[]> {
+  const { data, error } = await supabase
+    .from("candidate_contacts")
+    .select("*")
+    .eq("firm_candidate_id", candidateId)
+    .order("is_primary_contact", { ascending: false })
+    .order("created_at")
+    .returns<CandidateContactRow[]>();
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapCandidateContactRow);
+}
+
+export async function fetchAllCandidateContacts(supabase: SupabaseClient, candidateIds: string[]): Promise<Record<string, CandidateContact[]>> {
+  if (candidateIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from("candidate_contacts")
+    .select("*")
+    .in("firm_candidate_id", candidateIds)
+    .order("is_primary_contact", { ascending: false })
+    .order("created_at")
+    .returns<CandidateContactRow[]>();
+  if (error) throw new Error(error.message);
+  const grouped: Record<string, CandidateContact[]> = {};
+  for (const row of data ?? []) {
+    const contact = mapCandidateContactRow(row);
+    (grouped[contact.candidateId] ??= []).push(contact);
+  }
+  return grouped;
+}
+
+export async function updateCandidateContactSelection(supabase: SupabaseClient, contactId: string, selected: boolean): Promise<{ ok: true } | { error: unknown }> {
+  const { error } = await supabase.from("candidate_contacts").update({ selected_for_approval: selected }).eq("id", contactId);
+  if (error) return { error };
+  return { ok: true };
 }

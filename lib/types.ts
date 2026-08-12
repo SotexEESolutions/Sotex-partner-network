@@ -64,7 +64,17 @@ export type FirmReadiness = {
 
 export type CandidateStatus = "New"|"Approved"|"Rejected"|"Duplicate"|"Needs Review";
 export type DuplicateStatus = "No Match"|"Possible Match"|"Exact Match";
-export type FirmCandidate = { id:string; jobId:string; name:string; website:string; domain:string; phone:string; address:string; city:string; state:string; zip:string; region:string; market:string; type:string; source:string; sourceUrl:string; description:string; duplicateStatus:DuplicateStatus; possibleExistingFirmId?:string; confidence:"High"|"Medium"|"Low"; reviewStatus:CandidateStatus; resultingFirmId?:string; reviewedAt?:string; createdAt:string };
+export type ContactResearchStatus = "Not Started"|"Researching"|"Complete"|"No Contact Found"|"Failed";
+export type FirmCandidate = { id:string; jobId:string; name:string; website:string; domain:string; phone:string; address:string; city:string; state:string; zip:string; region:string; market:string; type:string; source:string; sourceUrl:string; description:string; duplicateStatus:DuplicateStatus; possibleExistingFirmId?:string; confidence:"High"|"Medium"|"Low"; reviewStatus:CandidateStatus; resultingFirmId?:string; reviewedAt?:string; createdAt:string; contactResearchStatus:ContactResearchStatus; contactResearchedAt?:string };
+
+export type ContactFieldStatus = "Not Found"|"Unverified"|"Verified"|"Invalid";
+export type CandidateContact = {
+  id:string; candidateId:string; firstName:string; lastName:string; fullName:string;
+  title:string; roleCategory:string; email:string; emailStatus:ContactFieldStatus;
+  directPhone:string; phoneStatus:ContactFieldStatus; linkedin:string;
+  confidence:"High"|"Medium"|"Low"; isPrimary:boolean; isDecisionMaker:boolean;
+  selectedForApproval:boolean; source:string; sourceUrl:string; createdAt:string;
+};
 
 export type DiscoveryJob = {
   id: string; city: string; market: string; region: string; state: string;
