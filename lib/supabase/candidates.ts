@@ -43,6 +43,17 @@ type DiscoveryJobRow = {
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
+  requested_categories: string[] | null;
+  target_candidates: number;
+  queries_attempted: number;
+  queries_total: number;
+  candidates_duplicate_existing: number;
+  firm_matches_flagged: number;
+  error_message: string | null;
+  estimated_requests: number;
+  actual_requests: number;
+  estimated_cost_usd: number | null;
+  requested_by: string | null;
 };
 
 export function mapCandidateRow(row: FirmCandidateRow): FirmCandidate {
@@ -90,6 +101,17 @@ function mapJobRow(row: DiscoveryJobRow): DiscoveryJob {
     startedAt: row.started_at ?? undefined,
     completedAt: row.completed_at ?? undefined,
     createdAt: row.created_at.slice(0, 10),
+    requestedCategories: row.requested_categories ?? [],
+    targetCandidates: row.target_candidates,
+    queriesAttempted: row.queries_attempted,
+    queriesTotal: row.queries_total,
+    candidatesDuplicateExisting: row.candidates_duplicate_existing,
+    firmMatchesFlagged: row.firm_matches_flagged,
+    errorMessage: row.error_message ?? undefined,
+    estimatedRequests: row.estimated_requests,
+    actualRequests: row.actual_requests,
+    estimatedCostUsd: row.estimated_cost_usd,
+    requestedBy: row.requested_by ?? undefined,
   };
 }
 
