@@ -1,0 +1,23 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { detectDuplicate, isMailMergeEligible, normalizeDomain, recommendPartnerType } from "../lib/discovery/core.mjs";
+
+const migration = await readFile(new URL("../supabase/migrations/20260811000000_phase_1.sql", import.meta.url), "utf8");
+const seed = await readFile(new URL("../supabase/seed.sql", import.meta.url), "utf8");
+const phase2 = await readFile(new URL("../supabase/migrations/20260811010000_phase_2_discovery_enrichment.sql", import.meta.url), "utf8");
+const candidates = await readFile(new URL("../lib/discovery/real-candidates.ts", import.meta.url), "utf8");
+
+test("schema contains all Phase 1 relational tables", () => {
+  for (const table of ["firms","contacts","outreach","tags","firm_tags","import_batches"]) assert.match(migration, new RegExp(`create table public\\.${table}`));
+});
+test("RLS is enabled and anonymous access is revoked", () => { assert.equal((migration.match(/enable row level security/g)||[]).length,6); assert.match(migration,/revoke all .* from anon/); });
+test("deduplication indexes cover firm domain, firm name-city, contact email, and contact name", () => { for (const name of ["firms_domain_unique","firms_name_city_unique","contacts_firm_email_unique","contacts_firm_name_unique"]) assert.match(migration,new RegExp(name)); });
+test("score caps at 100 and assigns all four grades", () => { assert.match(migration,/least\(score,100\)/); for(const grade of ["'A'","'B'","'C'","'D'"]) assert.match(migration,new RegExp(grade)); });
+test("seed includes at least 15 fictional .example firms", () => { assert.ok((seed.match(/\.example/g)||[]).length>=15); assert.ok((seed.match(/'Seed data'/g)||[]).length>=15); });
+test("Phase 2 schema stages discovery and preserves research evidence",()=>{for(const table of ["discovery_jobs","firm_candidates","research_evidence"])assert.match(phase2,new RegExp(`create table public\\.${table}`));assert.match(phase2,/security_invoker=true/);assert.match(phase2,/payroll_mentioned boolean/);});
+test("candidate approval rechecks duplicates and converts in one database function",()=>{assert.match(phase2,/prepare_candidate/);assert.match(phase2,/approve_firm_candidate/);assert.match(phase2,/Candidate has a duplicate match/);});
+test("duplicate detection uses exact domain, phone, name-city and fuzzy warning",()=>{const firms=[{id:"1",name:"Alamo Books & Tax",website:"https://alamobooks.com",phone:"210-555-0100",city:"San Antonio"}];assert.equal(detectDuplicate({name:"Anything",website:"https://www.alamobooks.com/services",phone:"",city:"Austin"},firms).status,"Exact Match");assert.equal(detectDuplicate({name:"Alamo Books and Tax PC",website:"",phone:"",city:"San Antonio"},firms).status,"Possible Match");assert.equal(normalizeDomain("https://www.Example.com/a"),"example.com");});
+test("partner type recommendation covers referral, wholesale, CPA, bookkeeping and tax",()=>{const base={services:[],type:"Accounting Firm",smb:true};assert.equal(recommendPartnerType({...base,services:["Payroll"]}),"Wholesale Payroll Partner");assert.equal(recommendPartnerType({...base,type:"CPA Firm",services:["Bookkeeping"]}),"Strategic CPA Partner");assert.equal(recommendPartnerType({...base,type:"Bookkeeper",services:["Bookkeeping"]}),"Bookkeeping Partner");assert.equal(recommendPartnerType({...base,type:"Enrolled Agent",services:["Tax"]}),"Tax / EA Partner");});
+test("mail merge eligibility enforces grade, primary email, and terminal outreach statuses",()=>{const firm={grade:"A",contacts:[{primary:true,email:"owner@example.com",emailStatus:"Verified"}],outreach:[]};assert.equal(isMailMergeEligible(firm),true);assert.equal(isMailMergeEligible({...firm,outreach:[{status:"Partner"}]}),false);assert.equal(isMailMergeEligible({...firm,grade:"C"}),false);});
+test("controlled live-search batch stages 15 official San Antonio candidates",()=>{assert.equal((candidates.match(/make\("rc/g)||[]).length,15);assert.equal((candidates.match(/Official firm website/g)||[]).length,1);});
