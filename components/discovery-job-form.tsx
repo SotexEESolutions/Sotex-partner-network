@@ -1,7 +1,7 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import { Play } from "lucide-react";
-import { DISCOVERY_CATEGORIES, DISCOVERY_MARKETS } from "@/lib/discovery/markets";
+import { DISCOVERY_CATEGORIES, DISCOVERY_MARKETS, estimateDiscoveryRequests } from "@/lib/discovery/markets";
 import { createDiscoveryJobs } from "@/lib/discovery/api";
 
 type Props = { creating: boolean; onCreating: (creating: boolean) => void; onCreated: (jobs: Array<{ id: string; status: string }>) => void };
@@ -13,7 +13,7 @@ export function DiscoveryJobForm({ creating, onCreating, onCreated }: Props) {
 
   const toggleMarket = (key: string) => setMarkets(m => m.includes(key) ? m.filter(x => x !== key) : [...m, key]);
   const toggleCategory = (category: string) => setCategories(c => c.includes(category) ? c.filter(x => x !== category) : [...c, category]);
-  const plannedRequests = markets.length * categories.length;
+  const plannedRequests = estimateDiscoveryRequests(markets, categories.length);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
