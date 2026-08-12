@@ -3,10 +3,18 @@ import { personalization, scoreFirm } from "./scoring";
 
 type Seed = Omit<Firm,"score"|"grade"|"scoreReason"|"personalizationNote">;
 const base = (id:string,name:string,city:string,region:string,type:string,employees:number|null,services:string[],smb:boolean,spanish:boolean,industries:string[],contact?:[string,string,string,string,string], activity?:[string,string,string]): Seed => ({
-  id,name,website:`https://${name.toLowerCase().replace(/[^a-z0-9]+/g,"")}.example`,phone:`(210) 555-${String(1100+Number(id)).slice(-4)}`,
-  city,state:"TX",region,type,employees,services,smb,spanish,industries,priority:"Medium",researchStatus:contact?"Complete":"Researching",confidence:contact?"High":"Medium",source:"Regional research",notes:"Fictional seed record for product testing.",
-  approach:services.includes("Payroll")?"Wholesale Payroll Partner":"Referral Partner",contacts:contact?[{id:`c${id}`,firstName:contact[0],lastName:contact[1],title:contact[2],role:contact[3],email:contact[4],phone:`(210) 555-${String(3100+Number(id)).slice(-4)}`,primary:true,decisionMaker:["Owner","Managing Partner","Partner"].includes(contact[3])}]:[],
-  outreach:activity?[{id:`a${id}`,type:activity[0] as "Email",date:activity[1],status:activity[2],notes:"Initial introduction and partnership overview.",nextFollowUp:"2026-08-22"}]:[],createdAt:`2026-07-${String(10+Number(id)).padStart(2,"0")}`
+  id,name,normalizedName:name.toLowerCase(),website:`https://${name.toLowerCase().replace(/[^a-z0-9]+/g,"")}.example`,domain:`${name.toLowerCase().replace(/[^a-z0-9]+/g,"")}.example`,phone:`(210) 555-${String(1100+Number(id)).slice(-4)}`,
+  addressLine1:"",addressLine2:"",city,state:"TX",zipCode:"",region,market:"",type,firmTypes:[type],employees,employeeCountRange:"",estimatedClientCount:null,services,
+  providesTax:services.includes("Tax"),providesBookkeeping:services.includes("Bookkeeping"),providesAccounting:services.includes("Accounting"),providesPayroll:services.includes("Payroll"),
+  providesCas:services.includes("CAS"),providesAudit:services.includes("Audit"),providesBusinessAdvisory:false,providesFinancialPlanning:false,providesWealthManagement:false,
+  providesQuickbooksServices:services.includes("QuickBooks"),quickbooksProadvisor:false,xeroPartner:services.includes("Xero"),
+  smb,spanish,industries,priority:"Medium",researchStatus:contact?"Complete":"Researching",enrichmentStatus:"Not Started",confidence:contact?"High":"Medium",
+  source:"Regional research",sourceUrl:"",googleMapsUrl:"",linkedinCompanyUrl:"",aboutPageUrl:"",servicesPageUrl:"",leadershipPageUrl:"",contactPageUrl:"",
+  notes:"Fictional seed record for product testing.",
+  approach:services.includes("Payroll")?"Wholesale Payroll Partner":"Referral Partner",
+  research:{payrollMentioned:null,bookkeepingMentioned:null,taxMentioned:null,casMentioned:null,outsourcedAccountingMentioned:null,advisoryMentioned:null,quickbooksMentioned:null,xeroMentioned:null,spanishMentioned:null,smallBusinessMentioned:null,businessClientsMentioned:null,primarilyIndividualTax:null,primarilyAuditAssurance:null},
+  contacts:contact?[{id:`c${id}`,firstName:contact[0],lastName:contact[1],title:contact[2],role:contact[3],email:contact[4],phone:`(210) 555-${String(3100+Number(id)).slice(-4)}`,primary:true,decisionMaker:["Owner","Managing Partner","Partner"].includes(contact[3])}]:[],
+  outreach:activity?[{id:`a${id}`,type:activity[0] as "Email",date:activity[1],status:activity[2],notes:"Initial introduction and partnership overview.",nextFollowUp:"2026-08-22"}]:[],createdAt:`2026-07-${String(10+Number(id)).padStart(2,"0")}`,updatedAt:`2026-07-${String(10+Number(id)).padStart(2,"0")}`
 });
 
 const seeds: Seed[] = [
