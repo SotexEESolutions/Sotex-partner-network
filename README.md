@@ -67,7 +67,7 @@ The Imports page downloads a ready-to-use template. Import preview classifies ne
 - Authentication UI is intentionally minimal; user provisioning happens in Supabase.
 - CSV import preview demonstrates the complete validation flow; high-volume background processing is deferred.
 - Scoring uses deterministic rules and exact service/industry labels rather than enrichment or fuzzy matching.
-- No Apollo, Lusha, scraping, automated email sending, HubSpot sync, or AI enrichment is included.
+- Automated email sending, HubSpot sync, and AI enrichment are not included. Google Places discovery and optional Lusha decision-maker enrichment are available when their server-only keys are configured.
 
 ## Recommended Phase 2
 
@@ -79,6 +79,6 @@ Phase 2 adds a staging-first real-prospect workflow. Apply `supabase/migrations/
 
 The new Discovery area includes candidate metrics, bulk review, approval/rejection, exact and fuzzy duplicate warnings, source evidence, confidence labels, and a seven-query San Antonio discovery plan. Approval rechecks duplicates before converting a candidate into a scored firm.
 
-The provider interfaces in `lib/discovery/providers.ts` keep future Google Places, Google Search, Apollo, Lusha, directory, and manual-research integrations interchangeable. At present, manual/official-website research is connected; provider credentials are not configured.
+Google Places stages firms for human review. Optional Lusha contact research stages up to three decision makers per candidate; revealing emails and phones may consume Lusha credits. Selected staged contacts are copied into the permanent contacts table only when the candidate is approved.
 
 Saved firm views now include Ready for Outreach, A/B prospects not contacted, missing decision maker/email, referral and wholesale payroll opportunities, and region-specific ready lists.

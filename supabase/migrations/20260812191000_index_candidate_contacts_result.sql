@@ -1,0 +1,1 @@
+create index candidate_contacts_resulting_contact_idx on public.candidate_contacts(resulting_contact_id) where resulting_contact_id is not null;
