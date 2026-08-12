@@ -71,4 +71,10 @@ export type DiscoveryJob = {
   searchCategory: string; searchQuery: string; source: string; status: string;
   recordsFound: number; recordsImported: number; recordsRejected: number;
   startedAt?: string; completedAt?: string; createdAt: string;
+  requestedCategories: string[]; targetCandidates: number;
+  queriesAttempted: number; queriesTotal: number;
+  candidatesDuplicateExisting: number; firmMatchesFlagged: number;
+  errorMessage?: string;
+  estimatedRequests: number; actualRequests: number; estimatedCostUsd: number | null;
+  requestedBy?: string;
 };
