@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { findAndEnrichDecisionMakers } from "@/lib/discovery/lusha";
+import { findAndEnrichDecisionMakers } from "@/lib/discovery/apollo";
 import { createClient } from "@/lib/supabase/server";
 
 function safeLog(operation:string,error:unknown){const code=typeof error==="object"&&error&&"code"in error?String(error.code):"unknown";console.error(`[Contact Research] ${operation} failed (code: ${code})`);}
@@ -15,7 +15,7 @@ export async function POST(_request:Request,context:{params:Promise<{id:string}>
   await supabase.from("firm_candidates").update({contact_research_status:"Researching"}).eq("id",id);
   try{
     const contacts=await findAndEnrichDecisionMakers(candidate.domain,3);
-    if(contacts.length>0){const rows=contacts.map((contact,index)=>({firm_candidate_id:id,provider:"Lusha",provider_record_id:contact.providerRecordId,first_name:contact.firstName,last_name:contact.lastName,full_name:contact.fullName,normalized_name:contact.fullName?contact.fullName.toLowerCase().replace(/[^a-z0-9]+/g," ").trim():null,title:contact.title,role_category:contact.roleCategory,email:contact.email,email_status:contact.emailStatus,direct_phone:contact.directPhone,phone_status:contact.phoneStatus,linkedin_url:contact.linkedinUrl,confidence:contact.confidence,is_primary_contact:index===0,is_decision_maker:true,selected_for_approval:true,source_url:contact.sourceUrl,raw_data:contact.rawData}));
+    if(contacts.length>0){const rows=contacts.map((contact,index)=>({firm_candidate_id:id,provider:"Apollo",provider_record_id:contact.providerRecordId,first_name:contact.firstName,last_name:contact.lastName,full_name:contact.fullName,normalized_name:contact.fullName?contact.fullName.toLowerCase().replace(/[^a-z0-9]+/g," ").trim():null,title:contact.title,role_category:contact.roleCategory,email:contact.email,email_status:contact.emailStatus,direct_phone:contact.directPhone,phone_status:contact.phoneStatus,linkedin_url:contact.linkedinUrl,confidence:contact.confidence,is_primary_contact:index===0,is_decision_maker:true,selected_for_approval:true,source_url:contact.sourceUrl,raw_data:contact.rawData}));
       const{error}=await supabase.from("candidate_contacts").upsert(rows,{onConflict:"firm_candidate_id,provider,provider_record_id"});if(error)throw error;
     }
     const status=contacts.length>0?"Complete":"No Contact Found";const researchedAt=new Date().toISOString();
@@ -24,9 +24,10 @@ export async function POST(_request:Request,context:{params:Promise<{id:string}>
     if(stagedError)throw stagedError;
     return NextResponse.json({status,contacts:staged??[]});
   }catch(error){
-    safeLog("Lusha decision-maker research",error);await supabase.from("firm_candidates").update({contact_research_status:"Failed",contact_researched_at:new Date().toISOString()}).eq("id",id);
+    safeLog("Apollo decision-maker research",error);await supabase.from("firm_candidates").update({contact_research_status:"Failed",contact_researched_at:new Date().toISOString()}).eq("id",id);
     const code=typeof error==="object"&&error&&"code"in error?String(error.code):"unknown";
     if(code==="not-configured")return NextResponse.json({error:"Contact enrichment is not configured."},{status:503});
+    if(code==="401"||code==="403")return NextResponse.json({error:"Contact enrichment is not configured."},{status:503});
     if(code==="402")return NextResponse.json({error:"Contact enrichment credits are unavailable."},{status:402});
     if(code==="429")return NextResponse.json({error:"Contact enrichment is temporarily rate limited."},{status:429});
     return NextResponse.json({error:"Contacts could not be researched. Please try again."},{status:502});
