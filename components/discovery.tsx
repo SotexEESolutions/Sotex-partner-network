@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react/jsx-no-target-blank */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowUpRight, Building2, Check, CheckCircle2, ChevronDown, DatabaseZap, ExternalLink, FileSearch, Globe2, Linkedin, Loader2, Mail, MapPin, Merge, Pause, Phone, Play, RotateCw, Search, ShieldCheck, UserSearch, X } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Check, CheckCircle2, ChevronDown, DatabaseZap, ExternalLink, FileSearch, Globe2, Linkedin, Loader2, Mail, MapPin, Merge, Pause, Play, RotateCw, Search, ShieldCheck, UserSearch, X } from "lucide-react";
 import type { CandidateContact, DiscoveryJob, Firm, FirmCandidate } from "@/lib/types";
 import { normalizeDomain } from "@/lib/discovery/core.mjs";
 import { createClient } from "@/lib/supabase/client";
@@ -10,6 +10,7 @@ import { fetchFirmById } from "@/lib/supabase/firms";
 import { tickDiscoveryJob } from "@/lib/discovery/api";
 import { researchCandidateContacts } from "@/lib/discovery/contact-research";
 import { DiscoveryJobForm } from "@/components/discovery-job-form";
+import { PhoneLink } from "@/components/phone-link";
 
 type Props={
   initialCandidates:FirmCandidate[]|null;
@@ -243,7 +244,7 @@ export function Discovery({initialCandidates,jobs:initialJobs,discoveryFailed,on
         return <article className={`candidate-row review-${c.reviewStatus.toLowerCase().replace(" ","-")}`} key={c.id}>
           <input aria-label={`Select ${c.name}`} type="checkbox" checked={selected.includes(c.id)} onChange={()=>setSelected(s=>s.includes(c.id)?s.filter(x=>x!==c.id):[...s,c.id])}/>
           <div className="candidate-company"><div className="company-icon">{c.name.split(" ").map(x=>x[0]).slice(0,2).join("")}</div><div><b>{c.name}</b><span><MapPin size={11}/>{c.city}, TX</span><a href={c.website} target="_blank">{normalizeDomain(c.website)} <ExternalLink size={10}/></a></div></div>
-          <div><span className="type-pill">{c.type}</span><p>{c.description}</p>{c.phone&&<small className="phone-label business"><Building2 size={11}/>Business: {c.phone}</small>}</div>
+          <div><span className="type-pill">{c.type}</span><p>{c.description}</p>{c.phone&&<PhoneLink phone={c.phone} prefix="Business" className="phone-label business"/>}</div>
           <div className="source-cell"><b><Globe2 size={13}/>{c.source}</b><a href={c.sourceUrl} target="_blank">View evidence <ArrowUpRight size={11}/></a><span className={`confidence c-${c.confidence.toLowerCase()}`}>{c.confidence} confidence</span></div>
           <div>{c.duplicateStatus==="No Match"?<span className="duplicate-ok"><ShieldCheck size={14}/>No match</span>:<span className="duplicate-warn"><AlertTriangle size={14}/>{c.duplicateStatus}</span>}</div>
           <div className="candidate-actions">{reviewable?<><button title={approvable?"Approve":"Resolve the duplicate match before approving"} className="approve" disabled={pending||!approvable} onClick={()=>approve(c)}><Check size={15}/></button><button title="Reject" disabled={pending} onClick={()=>setReviewStatus(c,"Rejected")}><X size={15}/></button>{c.reviewStatus==="New"&&<button title="Needs review" disabled={pending} onClick={()=>setReviewStatus(c,"Needs Review")}><AlertTriangle size={15}/></button>}<button title={canResearch?"Research contacts":!c.domain?"A company website is required before contact research can run.":"This candidate is not available for contact research."} disabled={!canResearch||researching} onClick={()=>setConfirmingResearchId(c.id)}><UserSearch size={15}/></button></>:<span className={`review-label rl-${c.reviewStatus.toLowerCase()}`}>{c.reviewStatus}</span>}</div>
@@ -252,7 +253,7 @@ export function Discovery({initialCandidates,jobs:initialJobs,discoveryFailed,on
             <label className="staged-contact-select"><input type="checkbox" checked={contact.selectedForApproval} disabled={selectionPendingIds.includes(contact.id)} onChange={()=>toggleContactSelection(contact)} aria-label={`Select ${contact.fullName||`${contact.firstName} ${contact.lastName}`.trim()||"contact"} for approval`}/></label>
             <div className="staged-contact-identity"><b>{contact.fullName||`${contact.firstName} ${contact.lastName}`.trim()||"Unnamed contact"}</b><span>{contact.title||contact.roleCategory||"Title unknown"}</span>{contact.isPrimary&&<i>Primary</i>}</div>
             <div className="staged-contact-field">{contact.email?<a href={`mailto:${contact.email}`}><Mail size={12}/>{contact.email}</a>:<span className="field-empty">No email found</span>}<span className={`field-status fs-${contact.emailStatus.toLowerCase().replace(" ","-")}`}>{contact.emailStatus}</span></div>
-            <div className="staged-contact-field">{contact.directPhone?<span className="phone-label direct"><Phone size={12}/>Direct: {contact.directPhone}</span>:<span className="field-empty">No direct phone</span>}<span className={`field-status fs-${contact.phoneStatus.toLowerCase().replace(" ","-")}`}>{contact.phoneStatus}</span></div>
+            <div className="staged-contact-field">{contact.directPhone?<PhoneLink phone={contact.directPhone} prefix="Direct" className="phone-label direct"/>:<span className="field-empty">No direct phone</span>}<span className={`field-status fs-${contact.phoneStatus.toLowerCase().replace(" ","-")}`}>{contact.phoneStatus}</span></div>
             <div className="staged-contact-field">{contact.linkedin?<a href={contact.linkedin} target="_blank" rel="noreferrer"><Linkedin size={12}/>LinkedIn</a>:<span className="field-empty">No LinkedIn</span>}</div>
             <div className="staged-contact-field"><span className={`confidence c-${contact.confidence.toLowerCase()}`}>{contact.confidence} confidence</span><small>{contact.source}</small></div>
           </div>)}<p className="candidate-contacts-note">Selected contacts will be added to the firm when this candidate is approved.</p></div>}
