@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { DISCOVERY_CATEGORIES, estimateDiscoveryRequests, getDiscoveryMarket } from "@/lib/discovery/markets";
+import { DISCOVERY_CATEGORIES, DISCOVERY_MARKETS, estimateDiscoveryRequests, getDiscoveryMarket } from "@/lib/discovery/markets";
 import { createClient } from "@/lib/supabase/server";
 
-const schema=z.object({markets:z.array(z.string()).min(1).max(7),categories:z.array(z.enum(DISCOVERY_CATEGORIES)).min(1).max(DISCOVERY_CATEGORIES.length),idempotencyKey:z.string().uuid()});
+const schema=z.object({markets:z.array(z.string()).min(1).max(DISCOVERY_MARKETS.length),categories:z.array(z.enum(DISCOVERY_CATEGORIES)).min(1).max(DISCOVERY_CATEGORIES.length),idempotencyKey:z.string().uuid()});
 
 export async function POST(request:Request){
   const supabase=await createClient();
