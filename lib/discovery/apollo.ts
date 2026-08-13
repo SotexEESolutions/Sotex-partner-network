@@ -22,7 +22,32 @@ async function apolloPost(path:string,params:URLSearchParams){
   }finally{clearTimeout(timeout);}
 }
 
-function searchParams(domain:string,limit:number){const params=new URLSearchParams({page:"1",per_page:String(limit),include_similar_titles:"true"});params.append("q_organization_domains_list[]",domain);for(const seniority of ["owner","founder","c_suite","partner"])params.append("person_seniorities[]",seniority);return params;}
+const SEARCH_POOL_SIZE=25;
+
+function searchParams(domain:string){const params=new URLSearchParams({page:"1",per_page:String(SEARCH_POOL_SIZE)});params.append("q_organization_domains_list[]",domain);return params;}
+
+function decisionMakerScore(person:UnknownRecord){
+  const title=stringValue(person.title)?.toLowerCase()??"";
+  const priorities:[RegExp,number][]=[
+    [/\b(owner|founder|co[- ]?founder)\b/,100],
+    [/\b(managing partner|senior partner|partner)\b/,95],
+    [/\b(chief executive officer|ceo|president)\b/,90],
+    [/\b(principal|managing director)\b/,85],
+    [/\b(chief operating officer|coo|chief financial officer|cfo)\b/,80],
+    [/\b(vice president|vp|director|head of)\b/,65],
+    [/\b(cpa|certified public accountant|enrolled agent|tax manager|accounting manager)\b/,50],
+    [/\b(manager|accountant|tax professional|advisor|consultant)\b/,30],
+  ];
+  const titleScore=priorities.find(([pattern])=>pattern.test(title))?.[1]??0;
+  const emailBonus=person.has_email===true?5:0;
+  const linkedinBonus=stringValue(person.linkedin_url)?2:0;
+  return titleScore+emailBonus+linkedinBonus;
+}
+
+function rankedPreviews(search:UnknownRecord,limit:number){
+  if(!Array.isArray(search.people))return[];
+  return search.people.map(record).filter((item):item is UnknownRecord=>Boolean(item)).map((person,index)=>({person,index,score:decisionMakerScore(person)})).sort((a,b)=>b.score-a.score||a.index-b.index).slice(0,limit).map(({person})=>person);
+}
 
 function mapEnrichedPerson(payload:UnknownRecord,fallbackId:string):StagedApolloContact|null{
   const person=record(payload.person);if(!person)return null;
@@ -37,8 +62,8 @@ function mapEnrichedPerson(payload:UnknownRecord,fallbackId:string):StagedApollo
 
 export async function findAndEnrichDecisionMakers(domain:string,limit=3){
   const boundedLimit=Math.min(Math.max(limit,1),3);
-  const search=await apolloPost("/mixed_people/api_search",searchParams(domain,boundedLimit));
-  const previews=Array.isArray(search.people)?search.people.map(record).filter((item):item is UnknownRecord=>Boolean(item)).slice(0,boundedLimit):[];
+  const search=await apolloPost("/mixed_people/api_search",searchParams(domain));
+  const previews=rankedPreviews(search,boundedLimit);
   const contacts:StagedApolloContact[]=[];
   for(const preview of previews){const id=stringValue(preview.id);if(!id)continue;const enriched=await apolloPost("/people/match",new URLSearchParams({id,domain}));const contact=mapEnrichedPerson(enriched,id);if(contact)contacts.push(contact);}
   return contacts;
