@@ -33,6 +33,8 @@ export function Discovery({initialCandidates,jobs:initialJobs,discoveryFailed,on
   const [selected,setSelected]=useState<string[]>([]);
   const [tab,setTab]=useState<"Review queue"|"Discovery jobs">("Review queue"); const [status,setStatus]=useState("All statuses"); const [query,setQuery]=useState("");
   const [pendingIds,setPendingIds]=useState<string[]>([]);
+  const [bulkConfirming,setBulkConfirming]=useState(false);
+  const [bulkApproving,setBulkApproving]=useState(false);
   const setPending=(id:string,pending:boolean)=>setPendingIds(ids=>pending?[...ids,id]:ids.filter(x=>x!==id));
 
   const [currentUserId,setCurrentUserId]=useState<string|null>(null);
@@ -80,21 +82,21 @@ export function Discovery({initialCandidates,jobs:initialJobs,discoveryFailed,on
   const visible=useMemo(()=>candidates.filter(c=>(status==="All statuses"||c.reviewStatus===status)&&`${c.name} ${c.city} ${c.type}`.toLowerCase().includes(query.toLowerCase())),[candidates,status,query]);
   const counts={found:candidates.length,new:candidates.filter(c=>c.reviewStatus==="New").length,approved:candidates.filter(c=>c.reviewStatus==="Approved").length,rejected:candidates.filter(c=>c.reviewStatus==="Rejected").length,duplicates:candidates.filter(c=>c.duplicateStatus!=="No Match").length,review:candidates.filter(c=>c.reviewStatus==="Needs Review").length};
 
-  const approve=async(candidate:FirmCandidate)=>{
-    if(pendingIds.includes(candidate.id))return;
+  const approve=async(candidate:FirmCandidate,announce=true):Promise<boolean>=>{
+    if(pendingIds.includes(candidate.id))return false;
     setPending(candidate.id,true);
     const supabase=createClient();
     const {data:rpcResult,error}=await supabase.rpc("approve_firm_candidate",{candidate_id:candidate.id});
     const newFirmId=typeof rpcResult==="string"?rpcResult:null;
     if(error||!newFirmId){
       logSafeError("approve_firm_candidate",error);
-      notify("This candidate could not be approved. Review its duplicate status and try again.");
+      if(announce)notify("This candidate could not be approved. Review its duplicate status and try again.");
       try{
         const fresh=await fetchCandidateById(supabase,candidate.id);
         setCandidates(cs=>cs.map(c=>c.id===fresh.id?fresh:c));
       }catch(refreshError){logSafeError("fetchCandidateById",refreshError);}
       setPending(candidate.id,false);
-      return;
+      return false;
     }
     try{
       const [freshCandidate,firm]=await Promise.all([fetchCandidateById(supabase,candidate.id),fetchFirmById(supabase,newFirmId)]);
@@ -105,12 +107,29 @@ export function Discovery({initialCandidates,jobs:initialJobs,discoveryFailed,on
         const freshContacts=await fetchCandidateContacts(supabase,candidate.id);
         setContactsByCandidate(prev=>({...prev,[candidate.id]:freshContacts}));
       }catch(contactsRefreshError){logSafeError("fetchCandidateContacts after approval",contactsRefreshError);}
-      notify(`${firm.name} approved and added to Firms`);
+      if(announce)notify(`${firm.name} approved and added to Firms`);
     }catch(refreshError){
       logSafeError("post-approval refresh",refreshError);
-      notify("Approved, but we couldn't refresh the details. Please reload.");
+      if(announce)notify("Approved, but we couldn't refresh the details. Please reload.");
     }
     setPending(candidate.id,false);
+    return true;
+  };
+
+  const selectedCandidates=candidates.filter(candidate=>selected.includes(candidate.id));
+  const bulkEligible=selectedCandidates.filter(candidate=>(candidate.reviewStatus==="New"||candidate.reviewStatus==="Needs Review")&&candidate.duplicateStatus==="No Match");
+  const bulkApprove=async()=>{
+    if(bulkApproving||bulkEligible.length===0)return;
+    setBulkApproving(true);
+    setBulkConfirming(false);
+    let approved=0;let failed=0;
+    for(const candidate of bulkEligible){
+      if(await approve(candidate,false))approved+=1;else failed+=1;
+    }
+    const skipped=selectedCandidates.length-bulkEligible.length;
+    setSelected([]);
+    setBulkApproving(false);
+    notify(`${approved} approved${skipped?` · ${skipped} skipped`:""}${failed?` · ${failed} failed`:""}`);
   };
 
   const setReviewStatus=async(candidate:FirmCandidate,reviewStatus:"Rejected"|"Needs Review")=>{
@@ -230,7 +249,7 @@ export function Discovery({initialCandidates,jobs:initialJobs,discoveryFailed,on
     <div className="discovery-metrics">{[{label:"Candidates found",value:counts.found,Icon:DatabaseZap,tone:"sage"},{label:"New",value:counts.new,Icon:FileSearch,tone:"blue"},{label:"Approved",value:counts.approved,Icon:CheckCircle2,tone:"green"},{label:"Rejected",value:counts.rejected,Icon:X,tone:"red"},{label:"Duplicates",value:counts.duplicates,Icon:Merge,tone:"gold"},{label:"Needs review",value:counts.review,Icon:AlertTriangle,tone:"gold"}].map(({label,value,Icon,tone})=><div className="metric discovery-metric" key={label}><div className={`metric-icon ${tone}`}><Icon size={18}/></div><span>{label}</span><strong>{value}</strong></div>)}</div>
     <div className="discovery-tabs"><button className={tab==="Review queue"?"active":""} onClick={()=>setTab("Review queue")}>Review queue <em>{counts.new}</em></button><button className={tab==="Discovery jobs"?"active":""} onClick={()=>setTab("Discovery jobs")}>Discovery jobs <em>{jobs.length}</em></button></div>
     {tab==="Review queue"?<><div className="review-toolbar"><div className="review-search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search candidates..."/></div><label className="select"><select value={status} onChange={e=>setStatus(e.target.value)}>{["All statuses","New","Approved","Rejected","Duplicate","Needs Review"].map(x=><option key={x}>{x}</option>)}</select><ChevronDown size={14}/></label><span>{visible.length} results</span></div>
-      {selected.length>0&&<div className="bulkbar"><b>{selected.length} selected</b><button disabled title="Bulk approval isn't available yet — use the row actions"><Check size={14}/>Approve</button><button disabled title="Bulk rejection isn't available yet — use the row actions"><X size={14}/>Reject</button><button disabled title="Bulk status updates aren't available yet — use the row actions"><AlertTriangle size={14}/>Needs review</button><button onClick={()=>setSelected([])}>Clear</button></div>}
+      {selected.length>0&&<div className="bulkbar"><b>{selected.length} selected</b>{bulkConfirming?<><span className="bulk-confirm-text">Approve {bulkEligible.length} eligible candidate{bulkEligible.length===1?"":"s"}?{selectedCandidates.length>bulkEligible.length&&` ${selectedCandidates.length-bulkEligible.length} ineligible will be skipped.`}</span><button disabled={bulkApproving||bulkEligible.length===0} onClick={bulkApprove}><Check size={14}/>{bulkApproving?"Approving…":"Confirm approval"}</button><button disabled={bulkApproving} onClick={()=>setBulkConfirming(false)}>Cancel</button></>:<button disabled={bulkApproving||bulkEligible.length===0} title={bulkEligible.length?`Approve ${bulkEligible.length} eligible candidates`:"No selected candidates are eligible for approval"} onClick={()=>setBulkConfirming(true)}><Check size={14}/>Approve {bulkEligible.length}</button>}<button disabled title="Bulk rejection isn't available yet — use the row actions"><X size={14}/>Reject</button><button disabled title="Bulk status updates aren't available yet — use the row actions"><AlertTriangle size={14}/>Needs review</button><button disabled={bulkApproving} onClick={()=>{setSelected([]);setBulkConfirming(false)}}>Clear</button></div>}
       {contactsLoadFailed&&<p className="evidence-status evidence-error job-run-error">Staged contacts could not be loaded for some candidates.</p>}
       <div className="candidate-list"><div className="candidate-head"><input aria-label="Select all candidates" type="checkbox" checked={visible.length>0&&selected.length===visible.length} onChange={e=>setSelected(e.target.checked?visible.map(c=>c.id):[])}/><span>Candidate</span><span>Firm profile</span><span>Source & confidence</span><span>Duplicate check</span><span>Actions</span></div>{visible.map(c=>{
         const pending=pendingIds.includes(c.id);

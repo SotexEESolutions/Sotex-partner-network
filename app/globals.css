@@ -118,6 +118,8 @@
 .data-error-card p{font-size:12px;color:#68756f;margin:0 0 20px;line-height:1.5}
 .data-error-card .icon{width:44px;height:44px;border-radius:11px;background:#f7ece9;color:#a54c42;display:grid;place-items:center;margin:0 auto}
 .sign-out-btn{border:0;background:transparent;color:#e2b8ac;font-size:9px;font-weight:700;padding:0;margin-left:auto;cursor:pointer}
+.bulkbar{min-height:46px;height:auto;padding:8px 13px}.bulk-confirm-text{font-size:8px;color:#d6e7df;margin-right:3px}
+.firm-website-link{display:inline-flex;align-items:center;gap:4px;color:#0676b7;text-decoration:none;font-weight:700}.firm-website-link:hover{text-decoration:underline}.firm-website-link:focus-visible{outline:2px solid #3ab1e9;outline-offset:3px;border-radius:3px}
 
 /* Auris-inspired blue visual system */
 :root{--ink:#0a2540;--muted:#617487;--line:#dce6ed;--paper:#f4f8fb;--green:#0676b7;--green-2:#159bd4;--mint:#e8f6fc;--gold:#f76a0c;--gold-bg:#fff1e8;--blue:#146ff8;--red:#c84949;--shadow:0 1px 2px rgba(0,44,77,.04),0 10px 30px rgba(0,44,77,.055)}
