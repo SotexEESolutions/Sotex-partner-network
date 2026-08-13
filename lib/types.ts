@@ -65,7 +65,12 @@ export type FirmReadiness = {
 export type CandidateStatus = "New"|"Approved"|"Rejected"|"Duplicate"|"Needs Review";
 export type DuplicateStatus = "No Match"|"Possible Match"|"Exact Match";
 export type ContactResearchStatus = "Not Started"|"Researching"|"Complete"|"No Contact Found"|"Failed";
-export type FirmCandidate = { id:string; jobId:string; name:string; website:string; domain:string; phone:string; address:string; city:string; state:string; zip:string; region:string; market:string; type:string; source:string; sourceUrl:string; description:string; duplicateStatus:DuplicateStatus; possibleExistingFirmId?:string; confidence:"High"|"Medium"|"Low"; reviewStatus:CandidateStatus; resultingFirmId?:string; reviewedAt?:string; createdAt:string; contactResearchStatus:ContactResearchStatus; contactResearchedAt?:string };
+export type WebResearchStatus = "Not Queued"|"Queued"|"Researching"|"Needs Review"|"Complete"|"Failed"|"Invalid Domain"|"Daily Limit";
+export type FindingReviewStatus = "Pending"|"Accepted"|"Rejected";
+export type FirmCandidate = { id:string; jobId:string; name:string; website:string; domain:string; phone:string; address:string; city:string; state:string; zip:string; region:string; market:string; type:string; source:string; sourceUrl:string; description:string; duplicateStatus:DuplicateStatus; possibleExistingFirmId?:string; confidence:"High"|"Medium"|"Low"; reviewStatus:CandidateStatus; resultingFirmId?:string; reviewedAt?:string; createdAt:string; contactResearchStatus:ContactResearchStatus; contactResearchedAt?:string; webResearchStatus:WebResearchStatus; webResearchedAt?:string; webResearchErrorCode?:string };
+
+export type CandidateResearchRun = { id:string; candidateId:string; status:"Queued"|"Running"|"Complete"|"Failed"|"Retry"; attemptCount:number; providerRequests:number; providerCredits:number; pagesVisited:number; errorCode?:string; startedAt?:string; completedAt?:string; createdAt:string };
+export type CandidateResearchFinding = { id:string; candidateId:string; runId:string; category:string; attributeName:string; proposedValue:unknown; sourceUrl:string; sourceText:string; confidence:"High"|"Medium"|"Low"; reviewStatus:FindingReviewStatus; reviewedAt?:string; createdAt:string };
 
 export type ContactFieldStatus = "Not Found"|"Unverified"|"Verified"|"Invalid";
 export type CandidateContact = {
