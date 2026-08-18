@@ -20,6 +20,9 @@ Copy `.env.example` to `.env.local` and add:
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_YOUR_KEY
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_YOUR_SERVER_ONLY_KEY
+FIRECRAWL_API_KEY=fc-YOUR_SERVER_ONLY_KEY
+CRON_SECRET=GENERATE_A_LONG_RANDOM_SERVER_ONLY_SECRET
+WEB_RESEARCH_DAILY_CANDIDATE_LIMIT=30
 ```
 
 Without these values, the app runs in preview mode with fictional in-memory data so the interface can be evaluated safely.
@@ -53,7 +56,7 @@ npm run build
 ## Vercel deployment
 
 1. Import this repository as a new Vercel project; framework detection should select Next.js.
-2. Add the three environment variables above for Preview and Production.
+2. Add the environment variables above for Preview and Production. Provider and cron secrets must remain server-only.
 3. Deploy. The health endpoint at `/api/health` reports whether database configuration is present without exposing secrets.
 4. Set the matching production URL in Supabase Auth redirect URLs before enabling sign-in flows.
 
@@ -82,3 +85,9 @@ The new Discovery area includes candidate metrics, bulk review, approval/rejecti
 Google Places stages firms for human review. Optional Apollo contact research stages up to three decision makers and their available work emails per candidate; enrichment may consume Apollo credits. Apollo phone reveal is asynchronous and is not enabled in this release. Selected staged contacts are copied into the permanent contacts table only when the candidate is approved.
 
 Saved firm views now include Ready for Outreach, A/B prospects not contacted, missing decision maker/email, referral and wholesale payroll opportunities, and region-specific ready lists.
+
+## Automated web research
+
+New candidates with a valid website are automatically queued for Firecrawl research. The worker visits official-site and relevant public-result pages, stages every supported fact with a URL and excerpt, and never converts missing text into a negative claim. Reviewers accept or reject findings in Discovery before approval. Public website decision makers are staged first; Apollo runs only when no usable public decision maker is found.
+
+The worker is capped by `WEB_RESEARCH_DAILY_CANDIDATE_LIMIT` (30 by default). Vercel calls `/api/cron/web-research` once daily and supplies `CRON_SECRET` as a bearer token. Manual retry and backfill remain authenticated. Applying the automated-web-research migration is required before enabling the worker.

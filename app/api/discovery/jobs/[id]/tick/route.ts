@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { mapGooglePlace, searchGooglePlaces } from "@/lib/discovery/google-places";
 import { createClient } from "@/lib/supabase/server";
+import { processWebResearchQueue } from "@/lib/discovery/web-research";
 
 type JobRow={id:string;market:string;region:string;status:string;requested_by:string;target_candidates:number;records_found:number;records_imported:number;queries_attempted:number;actual_requests:number;candidates_duplicate_existing:number;firm_matches_flagged:number};
 type QueryRow={id:string;category:string;query_text:string;page_size:number;page_number:number;next_page_token:string|null;attempt_count:number;places_returned:number;candidates_staged:number;duplicates_skipped:number;firm_matches_flagged:number};
@@ -32,6 +33,7 @@ export async function POST(_request:Request,context:{params:Promise<{id:string}>
     const insertion=rows.length?await supabase.from("firm_candidates").upsert(rows,{onConflict:"source,source_record_id",ignoreDuplicates:true}).select("id,duplicate_status"):{data:[],error:null};
     if(insertion.error)throw insertion.error;
     const staged=insertion.data?.length??0,duplicates=rows.length-staged,flagged=(insertion.data??[]).filter((candidate)=>candidate.duplicate_status!=="No Match").length;
+    if(staged>0)after(()=>processWebResearchQueue(Math.min(staged,3)).catch(error=>safeLog("immediate web research",error)));
     const importedTotal=job.records_imported+staged,hasNext=Boolean(result.nextPageToken)&&nextQuery.page_number<3&&importedTotal<job.target_candidates,now=new Date().toISOString();
     await supabase.from("discovery_job_queries").update({status:hasNext?"Pending":"Complete",page_number:hasNext?nextQuery.page_number+1:nextQuery.page_number,next_page_token:hasNext?result.nextPageToken:null,places_returned:nextQuery.places_returned+places.length,candidates_staged:nextQuery.candidates_staged+staged,duplicates_skipped:nextQuery.duplicates_skipped+duplicates,firm_matches_flagged:nextQuery.firm_matches_flagged+flagged,completed_at:hasNext?null:now,updated_at:now,last_error:null}).eq("id",nextQuery.id);
     await supabase.from("discovery_jobs").update({records_found:job.records_found+places.length,records_imported:importedTotal,queries_attempted:job.queries_attempted+1,actual_requests:job.actual_requests+1,candidates_duplicate_existing:job.candidates_duplicate_existing+duplicates,firm_matches_flagged:job.firm_matches_flagged+flagged}).eq("id",id);

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CandidateContact, CandidateStatus, ContactFieldStatus, ContactResearchStatus, DiscoveryJob, DuplicateStatus, FirmCandidate } from "@/lib/types";
+import type { CandidateContact, CandidateStatus, ContactFieldStatus, ContactResearchStatus, DiscoveryJob, DuplicateStatus, FirmCandidate, WebResearchStatus } from "@/lib/types";
 
 export type FirmCandidateRow = {
   id: string;
@@ -27,6 +27,9 @@ export type FirmCandidateRow = {
   reviewed_at: string | null;
   contact_research_status: ContactResearchStatus;
   contact_researched_at: string | null;
+  web_research_status: WebResearchStatus;
+  web_researched_at: string | null;
+  web_research_error_code: string | null;
 };
 
 export type CandidateContactRow = {
@@ -107,6 +110,9 @@ export function mapCandidateRow(row: FirmCandidateRow): FirmCandidate {
     createdAt: row.created_at.slice(0, 10),
     contactResearchStatus: row.contact_research_status,
     contactResearchedAt: row.contact_researched_at ?? undefined,
+    webResearchStatus: row.web_research_status,
+    webResearchedAt: row.web_researched_at ?? undefined,
+    webResearchErrorCode: row.web_research_error_code ?? undefined,
   };
 }
 
