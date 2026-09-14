@@ -1,4 +1,4 @@
-export type Grade = "A" | "B" | "C" | "D";
+export type Grade = "A+" | "A" | "B" | "C" | "D";
 export type Priority = "High" | "Medium" | "Low";
 export type TriState = boolean | null;
 
@@ -27,6 +27,30 @@ export type ResearchSignals = {
   businessClientsMentioned: TriState;
   primarilyIndividualTax: TriState;
   primarilyAuditAssurance: TriState;
+  idealClientSizeMatch: TriState;
+  locallyOwned: TriState;
+  payrollSecondaryService: TriState;
+  smallLocalPractice: TriState;
+  primarilyWealthManagement: TriState;
+  noBusinessClients: TriState;
+  nationalTaxFranchise: TriState;
+  inactiveOrOutdated: TriState;
+  institutionalPayrollOperation: TriState;
+};
+
+export type ScoreItem = { points: number; label: string };
+export type ScoringBreakdown = {
+  partnerFit: { score: number; max: 60; items: ScoreItem[] };
+  partnershipOpportunity: { score: number; max: 25; items: ScoreItem[] };
+  outreachReadiness: { score: number; max: 15; items: ScoreItem[] };
+  adjustments: ScoreItem[];
+  adjustmentTotal: number;
+  preAdjustmentTotal: number;
+  total: number;
+  grade: Grade;
+  topTarget: boolean;
+  partnerType: string;
+  reason: string;
 };
 
 export type Firm = {
@@ -41,7 +65,10 @@ export type Firm = {
   providesFinancialPlanning: boolean; providesWealthManagement: boolean;
   providesQuickbooksServices: boolean; quickbooksProadvisor: boolean; xeroPartner: boolean;
   smb: boolean; spanish: boolean; industries: string[];
-  score: number; grade: Grade;
+  score: number; grade: Grade; legacyScore: number | null;
+  partnerFitScore: number; partnershipOpportunityScore: number; outreachReadinessScore: number;
+  topTarget: boolean; scoringBreakdown: ScoringBreakdown;
+  institutionalPayrollAdjustment: number;
   priority: Priority; researchStatus: string; enrichmentStatus: string; confidence: string;
   source: string; sourceUrl: string; googleMapsUrl: string; linkedinCompanyUrl: string;
   aboutPageUrl: string; servicesPageUrl: string; leadershipPageUrl: string; contactPageUrl: string;
