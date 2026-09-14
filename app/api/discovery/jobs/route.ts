@@ -31,7 +31,7 @@ export async function POST(request:Request){
     if(existing){jobs.push(existing);continue;}
     const queryCount=market.anchors.length*parsed.data.categories.length;
     const pageSize=market.anchors.length>1?Math.max(1,Math.ceil(market.target/market.anchors.length)):20;
-    const{data:job,error:jobError}=await supabase.from("discovery_jobs").insert({city:market.city,market:market.label,region:market.region,state:"TX",search_category:"Multiple categories",search_query:`${queryCount} Google Places searches across ${market.label}`,source:"Google Places API",requested_categories:parsed.data.categories,target_candidates:market.target,queries_total:queryCount,estimated_requests:queryCount,requested_by:user.id,idempotency_key:idempotencyKey}).select("id,status").single();
+    const{data:job,error:jobError}=await supabase.from("discovery_jobs").insert({city:market.city,market:market.label,region:market.region,state:"TX",search_category:"Multiple categories",search_query:`${queryCount} Google Places searches across ${market.label}`,source:"Google Places API",requested_categories:parsed.data.categories,target_candidates:market.target,queries_total:queryCount,estimated_requests:queryCount,requested_by:user.id,created_by_user_id:user.id,idempotency_key:idempotencyKey}).select("id,status").single();
     if(jobError||!job)return NextResponse.json({error:"Discovery could not be started."},{status:500});
     const queries=parsed.data.categories.flatMap((category)=>market.anchors.map((anchorCity)=>({job_id:job.id,market:market.label,anchor_city:anchorCity,page_size:pageSize,category,query_text:`${category} in ${anchorCity}, TX`})));
     const{error:queryError}=await supabase.from("discovery_job_queries").insert(queries);
