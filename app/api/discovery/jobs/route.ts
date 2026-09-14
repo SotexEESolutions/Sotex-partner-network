@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { DISCOVERY_CATEGORIES, DISCOVERY_MARKETS, estimateDiscoveryRequests, getDiscoveryMarket } from "@/lib/discovery/markets";
+import { parseDiscoveryDailyLimit } from "@/lib/discovery/core.mjs";
 import { createClient } from "@/lib/supabase/server";
 
 const schema=z.object({markets:z.array(z.string()).min(1).max(DISCOVERY_MARKETS.length),categories:z.array(z.enum(DISCOVERY_CATEGORIES)).min(1).max(DISCOVERY_CATEGORIES.length),idempotencyKey:z.string().uuid()});
@@ -18,7 +19,7 @@ export async function POST(request:Request){
   const{data:dailyJobs,error:dailyError}=await supabase.from("discovery_jobs").select("estimated_requests").gte("created_at",today.toISOString());
   if(dailyError)return NextResponse.json({error:"Discovery could not be started."},{status:500});
   const plannedRequests=estimateDiscoveryRequests(parsed.data.markets,parsed.data.categories.length);
-  const dailyLimit=Number(process.env.DISCOVERY_DAILY_REQUEST_LIMIT??60);
+  const dailyLimit=parseDiscoveryDailyLimit(process.env.DISCOVERY_DAILY_REQUEST_LIMIT);
   const usedRequests=(dailyJobs??[]).reduce((sum,job)=>sum+Number(job.estimated_requests??0),0);
   if(usedRequests+plannedRequests>dailyLimit)return NextResponse.json({error:"The daily discovery request limit has been reached."},{status:429});
 
