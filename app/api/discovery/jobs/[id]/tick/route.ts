@@ -1,5 +1,6 @@
 import { after, NextResponse } from "next/server";
 import { mapGooglePlace, searchGooglePlaces } from "@/lib/discovery/google-places";
+import { parseDiscoveryDailyLimit } from "@/lib/discovery/core.mjs";
 import { createClient } from "@/lib/supabase/server";
 import { processWebResearchQueue } from "@/lib/discovery/web-research";
 
@@ -15,7 +16,7 @@ export async function POST(_request:Request,context:{params:Promise<{id:string}>
   if(["Complete","Failed"].includes(job.status))return NextResponse.json({jobId:id,status:job.status});
   const today=new Date();today.setUTCHours(0,0,0,0);
   const{data:usage,error:usageError}=await supabase.from("discovery_jobs").select("actual_requests").gte("created_at",today.toISOString());
-  const dailyLimit=Number(process.env.DISCOVERY_DAILY_REQUEST_LIMIT??60);
+  const dailyLimit=parseDiscoveryDailyLimit(process.env.DISCOVERY_DAILY_REQUEST_LIMIT);
   const usedRequests=(usage??[]).reduce((sum,row)=>sum+Number(row.actual_requests??0),0);
   if(usageError||usedRequests>=dailyLimit)return NextResponse.json({error:"The daily discovery request limit has been reached."},{status:429});
   const{data:nextQuery,error:nextError}=await supabase.from("discovery_job_queries").select("*").eq("job_id",id).eq("status","Pending").order("created_at").limit(1).maybeSingle<QueryRow>();
@@ -29,7 +30,7 @@ export async function POST(_request:Request,context:{params:Promise<{id:string}>
     if(remaining===0){const now=new Date().toISOString();await supabase.from("discovery_job_queries").update({status:"Skipped",completed_at:now,updated_at:now}).eq("job_id",id).in("status",["Pending","Running"]);await supabase.from("discovery_jobs").update({status:"Complete",completed_at:now}).eq("id",id);return NextResponse.json({jobId:id,status:"Complete",staged:0,duplicates:0,flagged:0});}
     const result=await searchGooglePlaces({query:nextQuery.query_text,pageToken:nextQuery.next_page_token,pageSize:Math.min(nextQuery.page_size,remaining)});
     const places=(result.places??[]).filter((place)=>place.id&&place.displayName?.text);
-    const rows=places.slice(0,remaining).map((place)=>mapGooglePlace(place,{jobId:job.id,market:job.market,region:job.region,category:nextQuery.category}));
+    const rows=places.slice(0,remaining).map((place)=>({...mapGooglePlace(place,{jobId:job.id,market:job.market,region:job.region,category:nextQuery.category}),created_by_user_id:user.id}));
     const insertion=rows.length?await supabase.from("firm_candidates").upsert(rows,{onConflict:"source,source_record_id",ignoreDuplicates:true}).select("id,duplicate_status"):{data:[],error:null};
     if(insertion.error)throw insertion.error;
     const staged=insertion.data?.length??0,duplicates=rows.length-staged,flagged=(insertion.data??[]).filter((candidate)=>candidate.duplicate_status!=="No Match").length;
