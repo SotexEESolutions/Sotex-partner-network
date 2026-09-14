@@ -19,6 +19,8 @@ type Props={
   discoveryFailed:boolean;
   onFirmApproved:(firm:Firm)=>void;
   notify:(s:string)=>void;
+  canApprove:boolean;
+  firms:Firm[];
 };
 
 function logSafeError(operation:string,error:unknown){
@@ -28,7 +30,7 @@ function logSafeError(operation:string,error:unknown){
 
 const TICK_DELAY_MS=400;
 
-export function Discovery({initialCandidates,jobs:initialJobs,discoveryFailed,onFirmApproved,notify}:Props){
+export function Discovery({initialCandidates,jobs:initialJobs,discoveryFailed,onFirmApproved,notify,canApprove,firms}:Props){
   const [candidates,setCandidates]=useState<FirmCandidate[]>(initialCandidates??[]);
   const [jobs,setJobs]=useState<DiscoveryJob[]>(initialJobs??[]);
   const [selected,setSelected]=useState<string[]>([]);
@@ -119,8 +121,17 @@ export function Discovery({initialCandidates,jobs:initialJobs,discoveryFailed,on
     return true;
   };
 
+  const mergeCandidate=async(candidate:FirmCandidate)=>{
+    if(!canApprove||!candidate.possibleExistingFirmId||pendingIds.includes(candidate.id))return;
+    setPending(candidate.id,true);const supabase=createClient();
+    const{data,error}=await supabase.rpc("merge_firm_candidate",{candidate_id:candidate.id,existing_firm_id:candidate.possibleExistingFirmId});
+    if(error||typeof data!=="string"){logSafeError("merge_firm_candidate",error);notify("This candidate could not be merged. Review the duplicate match and try again.");setPending(candidate.id,false);return;}
+    try{const[freshCandidate,firm]=await Promise.all([fetchCandidateById(supabase,candidate.id),fetchFirmById(supabase,data)]);setCandidates(cs=>cs.map(c=>c.id===freshCandidate.id?freshCandidate:c));setSelected(ids=>ids.filter(id=>id!==candidate.id));onFirmApproved(firm);notify(`${candidate.name} merged into ${firm.name}`);}catch(refreshError){logSafeError("post-merge refresh",refreshError);notify("Merged, but the updated firm could not be refreshed. Please reload.");}
+    setPending(candidate.id,false);
+  };
+
   const selectedCandidates=candidates.filter(candidate=>selected.includes(candidate.id));
-  const bulkEligible=selectedCandidates.filter(candidate=>(candidate.reviewStatus==="New"||candidate.reviewStatus==="Needs Review")&&candidate.duplicateStatus==="No Match");
+  const bulkEligible=selectedCandidates.filter(candidate=>canApprove&&(candidate.reviewStatus==="New"||candidate.reviewStatus==="Needs Review")&&candidate.duplicateStatus==="No Match");
   const bulkResearchPending=bulkEligible.filter(candidate=>!["Complete","Needs Review"].includes(candidate.webResearchStatus)).length;
   const bulkApprove=async()=>{
     if(bulkApproving||bulkEligible.length===0)return;
@@ -260,7 +271,7 @@ export function Discovery({initialCandidates,jobs:initialJobs,discoveryFailed,on
       {contactsLoadFailed&&<p className="evidence-status evidence-error job-run-error">Staged contacts could not be loaded for some candidates.</p>}
       <div className="candidate-list"><div className="candidate-head"><input aria-label="Select all candidates" type="checkbox" checked={visible.length>0&&selected.length===visible.length} onChange={e=>setSelected(e.target.checked?visible.map(c=>c.id):[])}/><span>Candidate</span><span>Firm profile</span><span>Source & confidence</span><span>Duplicate check</span><span>Actions</span></div>{visible.map(c=>{
         const pending=pendingIds.includes(c.id);
-        const approvable=(c.reviewStatus==="New"||c.reviewStatus==="Needs Review")&&c.duplicateStatus==="No Match";
+        const approvable=canApprove&&(c.reviewStatus==="New"||c.reviewStatus==="Needs Review")&&c.duplicateStatus==="No Match";
         const reviewable=c.reviewStatus==="New"||c.reviewStatus==="Needs Review";
         const canResearch=reviewable&&Boolean(c.domain);
         const researching=researchingIds.includes(c.id);
@@ -273,7 +284,7 @@ export function Discovery({initialCandidates,jobs:initialJobs,discoveryFailed,on
           <div><span className="type-pill">{c.type}</span><p>{c.description}</p>{c.phone&&<PhoneLink phone={c.phone} prefix="Business" className="phone-label business"/>}</div>
           <div className="source-cell"><b><Globe2 size={13}/>{c.source}</b><a href={c.sourceUrl} target="_blank">View evidence <ArrowUpRight size={11}/></a><span className={`confidence c-${c.confidence.toLowerCase()}`}>{c.confidence} confidence</span></div>
           <div>{c.duplicateStatus==="No Match"?<span className="duplicate-ok"><ShieldCheck size={14}/>No match</span>:<span className="duplicate-warn"><AlertTriangle size={14}/>{c.duplicateStatus}</span>}</div>
-          <div className="candidate-actions">{reviewable?<><button title={approvable?"Approve":"Resolve the duplicate match before approving"} className="approve" disabled={pending||!approvable} onClick={()=>["Complete","Needs Review"].includes(c.webResearchStatus)?approve(c):setApprovalWarningId(c.id)}><Check size={15}/></button><button title="Reject" disabled={pending} onClick={()=>setReviewStatus(c,"Rejected")}><X size={15}/></button>{c.reviewStatus==="New"&&<button title="Needs review" disabled={pending} onClick={()=>setReviewStatus(c,"Needs Review")}><AlertTriangle size={15}/></button>}<button title={canResearch?"Research contacts":!c.domain?"A company website is required before contact research can run.":"This candidate is not available for contact research."} disabled={!canResearch||researching} onClick={()=>setConfirmingResearchId(c.id)}><UserSearch size={15}/></button></>:<span className={`review-label rl-${c.reviewStatus.toLowerCase()}`}>{c.reviewStatus}</span>}</div>
+          <div className="candidate-actions">{reviewable?<><button title={approvable?"Approve":"Resolve the duplicate match before approving"} className="approve" disabled={pending||!approvable} onClick={()=>["Complete","Needs Review"].includes(c.webResearchStatus)?approve(c):setApprovalWarningId(c.id)}><Check size={15}/></button>{c.duplicateStatus!=="No Match"&&c.possibleExistingFirmId&&<button title={`Merge into ${firms.find(f=>f.id===c.possibleExistingFirmId)?.name??"matched firm"}`} disabled={pending||!canApprove} onClick={()=>mergeCandidate(c)}><Merge size={15}/></button>}<button title="Reject" disabled={pending} onClick={()=>setReviewStatus(c,"Rejected")}><X size={15}/></button>{c.reviewStatus==="New"&&<button title="Needs review" disabled={pending} onClick={()=>setReviewStatus(c,"Needs Review")}><AlertTriangle size={15}/></button>}<button title={canResearch?"Research contacts":!c.domain?"A company website is required before contact research can run.":"This candidate is not available for contact research."} disabled={!canResearch||researching} onClick={()=>setConfirmingResearchId(c.id)}><UserSearch size={15}/></button></>:<span className={`review-label rl-${c.reviewStatus.toLowerCase()}`}>{c.reviewStatus}</span>}</div>
           {approvalWarningId===c.id&&<div className="candidate-approval-warning"><AlertTriangle size={14}/><span>Web research is {c.webResearchStatus.toLowerCase()}. You can approve now, but only currently accepted findings and selected contacts will be copied.</span><button onClick={()=>setApprovalWarningId(null)}>Cancel</button><button className="primary" onClick={()=>{setApprovalWarningId(null);void approve(c)}}>Approve anyway</button></div>}
           {showResearchStrip&&<div className="candidate-research-confirm">{researching?<span className="research-pending"><Loader2 size={13} className="spin"/>Researching contacts…</span>:researchError?<><span className="evidence-status evidence-error">{researchError}</span><button onClick={()=>{setResearchErrors(errs=>{const rest={...errs};delete rest[c.id];return rest;});setConfirmingResearchId(null);}}>Dismiss</button></>:<><span><AlertTriangle size={13}/>Contact research may use Apollo email-enrichment credits. Up to three decision makers will be researched. Direct phone enrichment is not included yet.</span><div className="candidate-research-confirm-actions"><button onClick={()=>setConfirmingResearchId(null)}>Cancel</button><button className="primary" onClick={()=>runResearch(c)}>Start research</button></div></>}</div>}
           <CandidateWebResearchPanel candidate={c} onRefresh={refreshCandidatesAndJobs} notify={notify}/>

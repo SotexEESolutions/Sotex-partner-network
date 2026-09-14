@@ -43,6 +43,15 @@ const RESEARCH_SIGNAL_FIELDS: Array<[key: keyof ResearchSignalState, label: stri
   ["businessClientsMentioned", "Business clients mentioned"],
   ["primarilyIndividualTax", "Primarily individual tax"],
   ["primarilyAuditAssurance", "Primarily audit / assurance"],
+  ["idealClientSizeMatch", "Likely 1–150 employee clients"],
+  ["locallyOwned", "Locally owned / owner-led"],
+  ["payrollSecondaryService", "Payroll is a secondary service"],
+  ["smallLocalPractice", "Small / local practice"],
+  ["primarilyWealthManagement", "Primarily wealth / financial planning"],
+  ["noBusinessClients", "No business clients"],
+  ["nationalTaxFranchise", "National tax franchise / major chain"],
+  ["inactiveOrOutdated", "Closed, inactive, or clearly outdated"],
+  ["institutionalPayrollOperation", "Institutional payroll / HCM operation"],
 ];
 
 type CapabilityFlags = {
@@ -56,6 +65,9 @@ type ResearchSignalState = {
   outsourcedAccountingMentioned: TriStateLabel; advisoryMentioned: TriStateLabel; quickbooksMentioned: TriStateLabel; xeroMentioned: TriStateLabel;
   spanishMentioned: TriStateLabel; smallBusinessMentioned: TriStateLabel; businessClientsMentioned: TriStateLabel;
   primarilyIndividualTax: TriStateLabel; primarilyAuditAssurance: TriStateLabel;
+  idealClientSizeMatch: TriStateLabel; locallyOwned: TriStateLabel; payrollSecondaryService: TriStateLabel;
+  smallLocalPractice: TriStateLabel; primarilyWealthManagement: TriStateLabel; noBusinessClients: TriStateLabel;
+  nationalTaxFranchise: TriStateLabel; inactiveOrOutdated: TriStateLabel; institutionalPayrollOperation: TriStateLabel;
 };
 
 type FormState = CapabilityFlags & ResearchSignalState & {
@@ -65,6 +77,7 @@ type FormState = CapabilityFlags & ResearchSignalState & {
   spanishSpeaking: boolean; smbFocus: boolean; researchStatus: string; dataConfidence: string;
   source: string; sourceUrl: string; googleMapsUrl: string; linkedinCompanyUrl: string;
   aboutPageUrl: string; servicesPageUrl: string; leadershipPageUrl: string; contactPageUrl: string; notes: string;
+  institutionalPayrollAdjustment: string;
 };
 
 function triToLabel(value: boolean | null): TriStateLabel {
@@ -98,6 +111,12 @@ function initFromFirm(firm: Firm): FormState {
     spanishMentioned: triToLabel(firm.research.spanishMentioned), smallBusinessMentioned: triToLabel(firm.research.smallBusinessMentioned),
     businessClientsMentioned: triToLabel(firm.research.businessClientsMentioned),
     primarilyIndividualTax: triToLabel(firm.research.primarilyIndividualTax), primarilyAuditAssurance: triToLabel(firm.research.primarilyAuditAssurance),
+    idealClientSizeMatch: triToLabel(firm.research.idealClientSizeMatch), locallyOwned: triToLabel(firm.research.locallyOwned),
+    payrollSecondaryService: triToLabel(firm.research.payrollSecondaryService), smallLocalPractice: triToLabel(firm.research.smallLocalPractice),
+    primarilyWealthManagement: triToLabel(firm.research.primarilyWealthManagement), noBusinessClients: triToLabel(firm.research.noBusinessClients),
+    nationalTaxFranchise: triToLabel(firm.research.nationalTaxFranchise), inactiveOrOutdated: triToLabel(firm.research.inactiveOrOutdated),
+    institutionalPayrollOperation: triToLabel(firm.research.institutionalPayrollOperation),
+    institutionalPayrollAdjustment: String(firm.institutionalPayrollAdjustment),
   };
 }
 
@@ -124,6 +143,8 @@ export function FirmEnrichmentForm({ firm, close, onUpdated, notify }: Props) {
       if (!Number.isInteger(parsed) || parsed < 0) { setError("Employee count must be a whole number of 0 or more."); return; }
       employeeCount = parsed;
     }
+    const institutionalPayrollAdjustment = Number(form.institutionalPayrollAdjustment || 0);
+    if (![0,-10,-15,-20].includes(institutionalPayrollAdjustment)) { setError("Institutional payroll adjustment must be 0, -10, -15, or -20."); return; }
     setSubmitting(true);
     const supabase = createClient();
     const result = await updateFirm(supabase, firm.id, {
@@ -150,6 +171,11 @@ export function FirmEnrichmentForm({ firm, close, onUpdated, notify }: Props) {
       spanishMentioned: labelToTri(form.spanishMentioned), smallBusinessMentioned: labelToTri(form.smallBusinessMentioned),
       businessClientsMentioned: labelToTri(form.businessClientsMentioned),
       primarilyIndividualTax: labelToTri(form.primarilyIndividualTax), primarilyAuditAssurance: labelToTri(form.primarilyAuditAssurance),
+      idealClientSizeMatch: labelToTri(form.idealClientSizeMatch), locallyOwned: labelToTri(form.locallyOwned),
+      payrollSecondaryService: labelToTri(form.payrollSecondaryService), smallLocalPractice: labelToTri(form.smallLocalPractice),
+      primarilyWealthManagement: labelToTri(form.primarilyWealthManagement), noBusinessClients: labelToTri(form.noBusinessClients),
+      nationalTaxFranchise: labelToTri(form.nationalTaxFranchise), inactiveOrOutdated: labelToTri(form.inactiveOrOutdated),
+      institutionalPayrollOperation: labelToTri(form.institutionalPayrollOperation), institutionalPayrollAdjustment,
     });
     if ("error" in result) {
       logSafeError("updateFirm", result.error);
@@ -239,7 +265,7 @@ export function FirmEnrichmentForm({ firm, close, onUpdated, notify }: Props) {
 
         <div className="form-section">
           <h3>Research signals</h3>
-          <p className="form-section-note">Independent of the capability checkboxes above — these record what the source material says, not what the firm actually offers.</p>
+          <p className="form-section-note">These record what reliable source material says. Unknown earns no points and causes no deduction. Subjective deductions should have supporting evidence in the Evidence tab.</p>
           <div className="form-grid">
             {RESEARCH_SIGNAL_FIELDS.map(([key, label]) => (
               <div key={key}>
@@ -247,6 +273,12 @@ export function FirmEnrichmentForm({ firm, close, onUpdated, notify }: Props) {
                 <Select id={`enrich-${key}`} value={form[key]} onChange={v => set(key, v as TriStateLabel)} options={TRI_STATE_OPTIONS} />
               </div>
             ))}
+          </div>
+          <div className="form-grid scoring-adjustment-field">
+            <div>
+              <label htmlFor="enrich-institutional-adjustment"><span>Institutional payroll adjustment</span></label>
+              <Select id="enrich-institutional-adjustment" value={form.institutionalPayrollAdjustment} onChange={v => set("institutionalPayrollAdjustment", v)} options={["0","-10","-15","-20"]} />
+            </div>
           </div>
         </div>
 

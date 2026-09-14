@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Activity, Contact, Firm, Grade, Priority } from "@/lib/types";
+import type { Activity, AssignmentStatus, Contact, Firm, Grade, Priority, RecordVisibility, ScoringBreakdown } from "@/lib/types";
 
 export type ContactRow = {
   id: string;
@@ -22,6 +22,8 @@ export type OutreachRow = {
   response_status: string | null;
   notes: string | null;
   next_follow_up_date: string | null;
+  created_by_user_id:string|null;
+  note_visibility:RecordVisibility;
 };
 
 type FirmRow = {
@@ -59,6 +61,14 @@ type FirmRow = {
   industry_specialties: string[];
   notes: string | null;
   partner_score: number;
+  legacy_partner_score: number | null;
+  partner_fit_score: number;
+  partnership_opportunity_score: number;
+  outreach_readiness_score: number;
+  total_partner_score: number;
+  top_target: boolean;
+  scoring_breakdown: ScoringBreakdown;
+  institutional_payroll_adjustment: number;
   partner_grade: Grade;
   score_reason: string | null;
   target_priority: Priority | null;
@@ -91,6 +101,22 @@ type FirmRow = {
   business_clients_mentioned: boolean | null;
   primarily_individual_tax: boolean | null;
   primarily_audit_assurance: boolean | null;
+  ideal_client_size_match: boolean | null;
+  locally_owned: boolean | null;
+  payroll_secondary_service: boolean | null;
+  small_local_practice: boolean | null;
+  primarily_wealth_management: boolean | null;
+  no_business_clients: boolean | null;
+  national_tax_franchise: boolean | null;
+  inactive_or_outdated: boolean | null;
+  institutional_payroll_operation: boolean | null;
+  territory_id:string|null;
+  assigned_user_id:string|null;
+  assigned_at:string|null;
+  assignment_status:AssignmentStatus;
+  record_visibility:RecordVisibility;
+  created_by_user_id:string|null;
+  discovered_by_user_id:string|null;
   created_at: string;
   updated_at: string;
   contacts: ContactRow[] | null;
@@ -138,6 +164,8 @@ export function mapOutreachRow(row: OutreachRow): Activity {
     status: row.response_status ?? "No Response",
     notes: row.notes ?? "",
     nextFollowUp: row.next_follow_up_date ?? undefined,
+    createdByUserId:row.created_by_user_id??undefined,
+    noteVisibility:row.note_visibility,
   };
 }
 
@@ -177,8 +205,15 @@ export function mapFirmRow(row: FirmRow): Firm {
     smb: row.smb_focus,
     spanish: row.spanish_speaking,
     industries: row.industry_specialties ?? [],
-    score: row.partner_score,
+    score: row.total_partner_score,
     grade: row.partner_grade,
+    legacyScore: row.legacy_partner_score,
+    partnerFitScore: row.partner_fit_score,
+    partnershipOpportunityScore: row.partnership_opportunity_score,
+    outreachReadinessScore: row.outreach_readiness_score,
+    topTarget: row.top_target,
+    scoringBreakdown: row.scoring_breakdown,
+    institutionalPayrollAdjustment: row.institutional_payroll_adjustment,
     priority: row.target_priority ?? "Medium",
     researchStatus: row.research_status,
     enrichmentStatus: row.enrichment_status,
@@ -212,7 +247,23 @@ export function mapFirmRow(row: FirmRow): Firm {
       businessClientsMentioned: row.business_clients_mentioned,
       primarilyIndividualTax: row.primarily_individual_tax,
       primarilyAuditAssurance: row.primarily_audit_assurance,
+      idealClientSizeMatch: row.ideal_client_size_match,
+      locallyOwned: row.locally_owned,
+      payrollSecondaryService: row.payroll_secondary_service,
+      smallLocalPractice: row.small_local_practice,
+      primarilyWealthManagement: row.primarily_wealth_management,
+      noBusinessClients: row.no_business_clients,
+      nationalTaxFranchise: row.national_tax_franchise,
+      inactiveOrOutdated: row.inactive_or_outdated,
+      institutionalPayrollOperation: row.institutional_payroll_operation,
     },
+    territoryId:row.territory_id??undefined,
+    assignedUserId:row.assigned_user_id??undefined,
+    assignedAt:row.assigned_at??undefined,
+    assignmentStatus:row.assignment_status,
+    recordVisibility:row.record_visibility,
+    createdByUserId:row.created_by_user_id??undefined,
+    discoveredByUserId:row.discovered_by_user_id??undefined,
     contacts: (row.contacts ?? []).map(mapContactRow),
     outreach: (row.outreach ?? []).map(mapOutreachRow),
     createdAt: row.created_at.slice(0, 10),
@@ -226,7 +277,7 @@ export async function fetchFirms(supabase: SupabaseClient): Promise<Firm[]> {
   const { data, error } = await supabase
     .from("firms")
     .select(FIRM_SELECT)
-    .order("partner_score", { ascending: false })
+    .order("total_partner_score", { ascending: false })
     .returns<FirmRow[]>();
   if (error) throw new Error(error.message);
   return (data ?? []).map(mapFirmRow);
@@ -285,6 +336,7 @@ export type NewOutreachParams = {
   responseStatus: string;
   notes: string;
   nextFollowUp: string;
+  noteVisibility?:RecordVisibility;
 };
 
 export async function insertOutreach(supabase: SupabaseClient, params: NewOutreachParams): Promise<{ outreach: Activity } | { error: unknown }> {
@@ -297,6 +349,7 @@ export async function insertOutreach(supabase: SupabaseClient, params: NewOutrea
       response_status: params.responseStatus || null,
       notes: params.notes || null,
       next_follow_up_date: params.nextFollowUp || null,
+      note_visibility:params.noteVisibility??"Private",
     })
     .select("*")
     .single<OutreachRow>();
@@ -357,6 +410,16 @@ export type UpdateFirmParams = {
   businessClientsMentioned: boolean | null;
   primarilyIndividualTax: boolean | null;
   primarilyAuditAssurance: boolean | null;
+  idealClientSizeMatch: boolean | null;
+  locallyOwned: boolean | null;
+  payrollSecondaryService: boolean | null;
+  smallLocalPractice: boolean | null;
+  primarilyWealthManagement: boolean | null;
+  noBusinessClients: boolean | null;
+  nationalTaxFranchise: boolean | null;
+  inactiveOrOutdated: boolean | null;
+  institutionalPayrollOperation: boolean | null;
+  institutionalPayrollAdjustment: number;
 };
 
 export async function updateFirm(supabase: SupabaseClient, id: string, params: UpdateFirmParams): Promise<{ firm: Firm } | { error: unknown }> {
@@ -415,6 +478,16 @@ export async function updateFirm(supabase: SupabaseClient, id: string, params: U
       business_clients_mentioned: params.businessClientsMentioned,
       primarily_individual_tax: params.primarilyIndividualTax,
       primarily_audit_assurance: params.primarilyAuditAssurance,
+      ideal_client_size_match: params.idealClientSizeMatch,
+      locally_owned: params.locallyOwned,
+      payroll_secondary_service: params.payrollSecondaryService,
+      small_local_practice: params.smallLocalPractice,
+      primarily_wealth_management: params.primarilyWealthManagement,
+      no_business_clients: params.noBusinessClients,
+      national_tax_franchise: params.nationalTaxFranchise,
+      inactive_or_outdated: params.inactiveOrOutdated,
+      institutional_payroll_operation: params.institutionalPayrollOperation,
+      institutional_payroll_adjustment: params.institutionalPayrollAdjustment,
     })
     .eq("id", id)
     .select(FIRM_SELECT)
