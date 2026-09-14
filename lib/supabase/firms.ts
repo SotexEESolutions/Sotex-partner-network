@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Activity, Contact, Firm, Grade, Priority, ScoringBreakdown } from "@/lib/types";
+import type { Activity, AssignmentStatus, Contact, Firm, Grade, Priority, RecordVisibility, ScoringBreakdown } from "@/lib/types";
 
 export type ContactRow = {
   id: string;
@@ -22,6 +22,8 @@ export type OutreachRow = {
   response_status: string | null;
   notes: string | null;
   next_follow_up_date: string | null;
+  created_by_user_id:string|null;
+  note_visibility:RecordVisibility;
 };
 
 type FirmRow = {
@@ -108,6 +110,13 @@ type FirmRow = {
   national_tax_franchise: boolean | null;
   inactive_or_outdated: boolean | null;
   institutional_payroll_operation: boolean | null;
+  territory_id:string|null;
+  assigned_user_id:string|null;
+  assigned_at:string|null;
+  assignment_status:AssignmentStatus;
+  record_visibility:RecordVisibility;
+  created_by_user_id:string|null;
+  discovered_by_user_id:string|null;
   created_at: string;
   updated_at: string;
   contacts: ContactRow[] | null;
@@ -155,6 +164,8 @@ export function mapOutreachRow(row: OutreachRow): Activity {
     status: row.response_status ?? "No Response",
     notes: row.notes ?? "",
     nextFollowUp: row.next_follow_up_date ?? undefined,
+    createdByUserId:row.created_by_user_id??undefined,
+    noteVisibility:row.note_visibility,
   };
 }
 
@@ -246,6 +257,13 @@ export function mapFirmRow(row: FirmRow): Firm {
       inactiveOrOutdated: row.inactive_or_outdated,
       institutionalPayrollOperation: row.institutional_payroll_operation,
     },
+    territoryId:row.territory_id??undefined,
+    assignedUserId:row.assigned_user_id??undefined,
+    assignedAt:row.assigned_at??undefined,
+    assignmentStatus:row.assignment_status,
+    recordVisibility:row.record_visibility,
+    createdByUserId:row.created_by_user_id??undefined,
+    discoveredByUserId:row.discovered_by_user_id??undefined,
     contacts: (row.contacts ?? []).map(mapContactRow),
     outreach: (row.outreach ?? []).map(mapOutreachRow),
     createdAt: row.created_at.slice(0, 10),
@@ -318,6 +336,7 @@ export type NewOutreachParams = {
   responseStatus: string;
   notes: string;
   nextFollowUp: string;
+  noteVisibility?:RecordVisibility;
 };
 
 export async function insertOutreach(supabase: SupabaseClient, params: NewOutreachParams): Promise<{ outreach: Activity } | { error: unknown }> {
@@ -330,6 +349,7 @@ export async function insertOutreach(supabase: SupabaseClient, params: NewOutrea
       response_status: params.responseStatus || null,
       notes: params.notes || null,
       next_follow_up_date: params.nextFollowUp || null,
+      note_visibility:params.noteVisibility??"Private",
     })
     .select("*")
     .single<OutreachRow>();

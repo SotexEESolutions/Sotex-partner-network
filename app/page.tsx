@@ -2,8 +2,9 @@ import { PartnerNetwork } from "@/components/partner-network";
 import { createClient } from "@/lib/supabase/server";
 import { fetchFirms } from "@/lib/supabase/firms";
 import { fetchCandidates, fetchDiscoveryJobs } from "@/lib/supabase/candidates";
+import { fetchAccessContext } from "@/lib/supabase/access";
 import { DataError } from "@/components/data-error";
-import type { DiscoveryJob, Firm, FirmCandidate } from "@/lib/types";
+import type { AccessContext, DiscoveryJob, Firm, FirmCandidate } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,9 @@ async function loadDiscovery(): Promise<{ candidates: FirmCandidate[]; jobs: Dis
 }
 
 export default async function Home() {
+  let access:AccessContext;
+  try{const supabase=await createClient();access=await fetchAccessContext(supabase);}catch(error){console.error("[Home] Failed to load access profile:",error);return <DataError/>;}
+  if(!access.currentUser.isActive)return <main className="access-blocked"><div className="empty"><h1>Account inactive</h1><p>Contact a SoTex administrator to restore access.</p></div></main>;
   const firmsResult = await loadFirms();
   if ("failed" in firmsResult) return <DataError />;
 
@@ -42,6 +46,7 @@ export default async function Home() {
       initialCandidates={discoveryFailed ? null : discoveryResult.candidates}
       initialJobs={discoveryFailed ? null : discoveryResult.jobs}
       discoveryFailed={discoveryFailed}
+      access={access}
     />
   );
 }

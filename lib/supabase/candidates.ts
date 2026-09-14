@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CandidateContact, CandidateStatus, ContactFieldStatus, ContactResearchStatus, DiscoveryJob, DuplicateStatus, FirmCandidate, WebResearchStatus } from "@/lib/types";
+import type { CandidateContact, CandidateStatus, ContactFieldStatus, ContactResearchStatus, DiscoveryJob, DuplicateStatus, FirmCandidate, RecordVisibility, WebResearchStatus } from "@/lib/types";
 
 export type FirmCandidateRow = {
   id: string;
@@ -30,6 +30,9 @@ export type FirmCandidateRow = {
   web_research_status: WebResearchStatus;
   web_researched_at: string | null;
   web_research_error_code: string | null;
+  created_by_user_id:string|null;
+  territory_id:string|null;
+  visibility:RecordVisibility;
 };
 
 export type CandidateContactRow = {
@@ -81,6 +84,9 @@ type DiscoveryJobRow = {
   actual_requests: number;
   estimated_cost_usd: number | null;
   requested_by: string | null;
+  created_by_user_id:string|null;
+  territory_id:string|null;
+  visibility:RecordVisibility;
 };
 
 export function mapCandidateRow(row: FirmCandidateRow): FirmCandidate {
@@ -113,6 +119,9 @@ export function mapCandidateRow(row: FirmCandidateRow): FirmCandidate {
     webResearchStatus: row.web_research_status,
     webResearchedAt: row.web_researched_at ?? undefined,
     webResearchErrorCode: row.web_research_error_code ?? undefined,
+    createdByUserId:row.created_by_user_id??undefined,
+    territoryId:row.territory_id??undefined,
+    visibility:row.visibility,
   };
 }
 
@@ -168,6 +177,9 @@ function mapJobRow(row: DiscoveryJobRow): DiscoveryJob {
     actualRequests: row.actual_requests,
     estimatedCostUsd: row.estimated_cost_usd,
     requestedBy: row.requested_by ?? undefined,
+    createdByUserId:row.created_by_user_id??undefined,
+    territoryId:row.territory_id??undefined,
+    visibility:row.visibility,
   };
 }
 

@@ -13,7 +13,7 @@ const base = (id:string,name:string,city:string,region:string,type:string,employ
   approach:services.includes("Payroll")?"Wholesale Payroll Partner":"Referral Partner",
   research:{payrollMentioned:null,bookkeepingMentioned:null,taxMentioned:null,casMentioned:null,outsourcedAccountingMentioned:null,advisoryMentioned:null,quickbooksMentioned:null,xeroMentioned:null,spanishMentioned:null,smallBusinessMentioned:null,businessClientsMentioned:null,primarilyIndividualTax:null,primarilyAuditAssurance:null,idealClientSizeMatch:null,locallyOwned:null,payrollSecondaryService:null,smallLocalPractice:null,primarilyWealthManagement:null,noBusinessClients:null,nationalTaxFranchise:null,inactiveOrOutdated:null,institutionalPayrollOperation:null},
   contacts:contact?[{id:`c${id}`,firstName:contact[0],lastName:contact[1],title:contact[2],role:contact[3],email:contact[4],phone:`(210) 555-${String(3100+Number(id)).slice(-4)}`,primary:true,decisionMaker:["Owner","Managing Partner","Partner"].includes(contact[3])}]:[],
-  outreach:activity?[{id:`a${id}`,type:activity[0] as "Email",date:activity[1],status:activity[2],notes:"Initial introduction and partnership overview.",nextFollowUp:"2026-08-22"}]:[],createdAt:`2026-07-${String(10+Number(id)).padStart(2,"0")}`,updatedAt:`2026-07-${String(10+Number(id)).padStart(2,"0")}`
+  assignmentStatus:"Unassigned",recordVisibility:"Organization",outreach:activity?[{id:`a${id}`,type:activity[0] as "Email",date:activity[1],status:activity[2],notes:"Initial introduction and partnership overview.",nextFollowUp:"2026-08-22",noteVisibility:"Organization"}]:[],createdAt:`2026-07-${String(10+Number(id)).padStart(2,"0")}`,updatedAt:`2026-07-${String(10+Number(id)).padStart(2,"0")}`
 });
 
 const seeds: Seed[] = [
