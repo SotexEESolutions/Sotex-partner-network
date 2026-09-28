@@ -27,8 +27,8 @@ export default function LoginPage() {
   return (
     <div className="auth-shell">
       <div className="auth-card">
-        <div className="brand-mark">S</div>
-        <h1>SoTex Partner Network</h1>
+        <div className="brand-mark">T</div>
+        <h1>Texas Accounting Partners</h1>
         <p className="sub">Sign in with your internal account to continue.</p>
         <form onSubmit={submit}>
           <label className="auth-field">

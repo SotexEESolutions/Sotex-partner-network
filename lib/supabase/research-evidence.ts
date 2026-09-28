@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ResearchEvidence } from "@/lib/types";
+import type { RecordVisibility, ResearchEvidence } from "@/lib/types";
 
 type ResearchEvidenceRow = {
   id: string;
@@ -10,6 +10,8 @@ type ResearchEvidenceRow = {
   source_text: string | null;
   confidence: "High" | "Medium" | "Low";
   created_at: string;
+  created_by_user_id:string|null;
+  visibility:RecordVisibility;
 };
 
 function mapEvidenceRow(row: ResearchEvidenceRow): ResearchEvidence {
@@ -21,6 +23,8 @@ function mapEvidenceRow(row: ResearchEvidenceRow): ResearchEvidence {
     sourceUrl: row.source_url,
     sourceText: row.source_text ?? "",
     confidence: row.confidence,
+    createdByUserId:row.created_by_user_id??undefined,
+    visibility:row.visibility,
     createdAt: row.created_at,
   };
 }
@@ -43,6 +47,7 @@ export type NewResearchEvidenceParams = {
   sourceUrl: string;
   sourceText: string;
   confidence: "High" | "Medium" | "Low";
+  visibility?:RecordVisibility;
 };
 
 export async function insertResearchEvidence(supabase: SupabaseClient, params: NewResearchEvidenceParams): Promise<{ evidence: ResearchEvidence } | { error: unknown }> {
@@ -55,6 +60,7 @@ export async function insertResearchEvidence(supabase: SupabaseClient, params: N
       source_url: params.sourceUrl,
       source_text: params.sourceText || null,
       confidence: params.confidence,
+      visibility:params.visibility??"Territory",
     })
     .select("*")
     .single<ResearchEvidenceRow>();

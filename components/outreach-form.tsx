@@ -1,6 +1,6 @@
 "use client";
 import { useState, type FormEvent } from "react";
-import type { Activity, Firm } from "@/lib/types";
+import type { AccessContext, Activity, Firm, RecordVisibility } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import { fetchFirmById, insertOutreach } from "@/lib/supabase/firms";
 import { logSafeError } from "@/lib/safe-error";
@@ -8,6 +8,7 @@ import { Modal, Select } from "@/components/form-controls";
 
 const TYPE_OPTIONS: Activity["type"][] = ["Email", "Phone", "LinkedIn", "Meeting", "Referral", "Other"];
 const STATUS_OPTIONS = ["No Response", "Interested", "Meeting Scheduled", "Follow Up Later", "Referred", "Partner", "Not Interested", "Bad Contact"];
+const recentOutreachCutoff=Date.now()-14*86400000;
 
 type Props = {
   firms: Firm[];
@@ -15,9 +16,10 @@ type Props = {
   close: () => void;
   onLogged: (firm: Firm) => void;
   notify: (s: string) => void;
+  access: AccessContext;
 };
 
-export function OutreachForm({ firms, lockedFirmId, close, onLogged, notify }: Props) {
+export function OutreachForm({ firms, lockedFirmId, close, onLogged, notify, access }: Props) {
   const [firmId, setFirmId] = useState(lockedFirmId ?? "");
   const [contactId, setContactId] = useState("");
   const [type, setType] = useState<Activity["type"]>("Email");
@@ -26,9 +28,13 @@ export function OutreachForm({ firms, lockedFirmId, close, onLogged, notify }: P
   const [nextFollowUp, setNextFollowUp] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [noteVisibility,setNoteVisibility]=useState<RecordVisibility>("Private");
 
   const lockedFirm = lockedFirmId ? firms.find(f => f.id === lockedFirmId) : undefined;
   const selectedFirm = firms.find(f => f.id === firmId);
+  const recentActivity=selectedFirm?.outreach.find(item=>new Date(item.date).getTime()>=recentOutreachCutoff);
+  const duplicateWarning=access.currentUser.role==="Rep"&&Boolean(selectedFirm&&(selectedFirm.assignedUserId&&selectedFirm.assignedUserId!==access.currentUser.id||recentActivity||selectedFirm.outreach.some(item=>item.status==="Partner"||item.status==="Not Interested")));
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -39,6 +45,7 @@ export function OutreachForm({ firms, lockedFirmId, close, onLogged, notify }: P
       setError("The selected contact doesn't belong to this firm.");
       return;
     }
+    if(duplicateWarning&&!confirmed){setError("This firm is assigned to another rep, was contacted recently, or has a closed outcome. Confirm before logging outreach.");setConfirmed(true);return;}
     setSubmitting(true);
     const supabase = createClient();
     const result = await insertOutreach(supabase, {
@@ -48,6 +55,7 @@ export function OutreachForm({ firms, lockedFirmId, close, onLogged, notify }: P
       responseStatus: status,
       notes: notes.trim(),
       nextFollowUp,
+      noteVisibility,
     });
     if ("error" in result) {
       logSafeError("insertOutreach", result.error);
@@ -102,12 +110,13 @@ export function OutreachForm({ firms, lockedFirmId, close, onLogged, notify }: P
             <Select id="outreach-status" value={status} onChange={setStatus} options={STATUS_OPTIONS} />
           </div>
           <label><span>Next follow-up</span><input type="date" value={nextFollowUp} onChange={e => setNextFollowUp(e.target.value)} /></label>
+          <div><label htmlFor="outreach-visibility"><span>Note visibility</span></label><Select id="outreach-visibility" value={noteVisibility} onChange={v=>setNoteVisibility(v as RecordVisibility)} options={["Private","Territory","Organization"]}/></div>
         </div>
         <label className="full-label"><span>Notes</span><textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} placeholder="What happened?" /></label>
         {error && <div className="auth-error">{error}</div>}
         <div className="modal-actions">
           <button type="button" onClick={close}>Cancel</button>
-          <button type="submit" className="primary" disabled={submitting}>{submitting ? "Saving…" : "Log outreach"}</button>
+          <button type="submit" className="primary" disabled={submitting}>{submitting ? "Saving…" : duplicateWarning&&confirmed?"Confirm and log":"Log outreach"}</button>
         </div>
       </form>
     </Modal>

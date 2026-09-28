@@ -1,20 +1,19 @@
 import type { Firm } from "./types";
-import { personalization, scoreFirm } from "./scoring";
 
-type Seed = Omit<Firm,"score"|"grade"|"scoreReason"|"personalizationNote">;
+type Seed = Omit<Firm,"score"|"grade"|"legacyScore"|"partnerFitScore"|"partnershipOpportunityScore"|"outreachReadinessScore"|"topTarget"|"scoringBreakdown"|"scoreReason"|"personalizationNote">;
 const base = (id:string,name:string,city:string,region:string,type:string,employees:number|null,services:string[],smb:boolean,spanish:boolean,industries:string[],contact?:[string,string,string,string,string], activity?:[string,string,string]): Seed => ({
   id,name,normalizedName:name.toLowerCase(),website:`https://${name.toLowerCase().replace(/[^a-z0-9]+/g,"")}.example`,domain:`${name.toLowerCase().replace(/[^a-z0-9]+/g,"")}.example`,phone:`(210) 555-${String(1100+Number(id)).slice(-4)}`,
   addressLine1:"",addressLine2:"",city,state:"TX",zipCode:"",region,market:"",type,firmTypes:[type],employees,employeeCountRange:"",estimatedClientCount:null,services,
   providesTax:services.includes("Tax"),providesBookkeeping:services.includes("Bookkeeping"),providesAccounting:services.includes("Accounting"),providesPayroll:services.includes("Payroll"),
   providesCas:services.includes("CAS"),providesAudit:services.includes("Audit"),providesBusinessAdvisory:false,providesFinancialPlanning:false,providesWealthManagement:false,
   providesQuickbooksServices:services.includes("QuickBooks"),quickbooksProadvisor:false,xeroPartner:services.includes("Xero"),
-  smb,spanish,industries,priority:"Medium",researchStatus:contact?"Complete":"Researching",enrichmentStatus:"Not Started",confidence:contact?"High":"Medium",
+  smb,spanish,industries,institutionalPayrollAdjustment:0,priority:"Medium",researchStatus:contact?"Complete":"Researching",enrichmentStatus:"Not Started",confidence:contact?"High":"Medium",
   source:"Regional research",sourceUrl:"",googleMapsUrl:"",linkedinCompanyUrl:"",aboutPageUrl:"",servicesPageUrl:"",leadershipPageUrl:"",contactPageUrl:"",
   notes:"Fictional seed record for product testing.",
   approach:services.includes("Payroll")?"Wholesale Payroll Partner":"Referral Partner",
-  research:{payrollMentioned:null,bookkeepingMentioned:null,taxMentioned:null,casMentioned:null,outsourcedAccountingMentioned:null,advisoryMentioned:null,quickbooksMentioned:null,xeroMentioned:null,spanishMentioned:null,smallBusinessMentioned:null,businessClientsMentioned:null,primarilyIndividualTax:null,primarilyAuditAssurance:null},
+  research:{payrollMentioned:null,bookkeepingMentioned:null,taxMentioned:null,casMentioned:null,outsourcedAccountingMentioned:null,advisoryMentioned:null,quickbooksMentioned:null,xeroMentioned:null,spanishMentioned:null,smallBusinessMentioned:null,businessClientsMentioned:null,primarilyIndividualTax:null,primarilyAuditAssurance:null,idealClientSizeMatch:null,locallyOwned:null,payrollSecondaryService:null,smallLocalPractice:null,primarilyWealthManagement:null,noBusinessClients:null,nationalTaxFranchise:null,inactiveOrOutdated:null,institutionalPayrollOperation:null},
   contacts:contact?[{id:`c${id}`,firstName:contact[0],lastName:contact[1],title:contact[2],role:contact[3],email:contact[4],phone:`(210) 555-${String(3100+Number(id)).slice(-4)}`,primary:true,decisionMaker:["Owner","Managing Partner","Partner"].includes(contact[3])}]:[],
-  outreach:activity?[{id:`a${id}`,type:activity[0] as "Email",date:activity[1],status:activity[2],notes:"Initial introduction and partnership overview.",nextFollowUp:"2026-08-22"}]:[],createdAt:`2026-07-${String(10+Number(id)).padStart(2,"0")}`,updatedAt:`2026-07-${String(10+Number(id)).padStart(2,"0")}`
+  assignmentStatus:"Unassigned",recordVisibility:"Organization",outreach:activity?[{id:`a${id}`,type:activity[0] as "Email",date:activity[1],status:activity[2],notes:"Initial introduction and partnership overview.",nextFollowUp:"2026-08-22",noteVisibility:"Organization"}]:[],createdAt:`2026-07-${String(10+Number(id)).padStart(2,"0")}`,updatedAt:`2026-07-${String(10+Number(id)).padStart(2,"0")}`
 });
 
 const seeds: Seed[] = [
@@ -35,4 +34,4 @@ const seeds: Seed[] = [
   base("15","Bluebonnet Advisory Studio","Boerne","San Antonio","CAS / Advisory",9,["CAS","Bookkeeping","QuickBooks"],true,false,["medical","professional services"],["Jordan","Park","Managing Partner","Managing Partner","jordan@bluebonnet.example"]),
 ];
 
-export const seedFirms: Firm[] = seeds.map(f => { const result=scoreFirm(f); return {...f,...result,scoreReason:result.reason,personalizationNote:personalization(f)}; });
+export const seedFirms: Firm[] = seeds.map(f => ({...f,score:0,grade:"D",legacyScore:null,partnerFitScore:0,partnershipOpportunityScore:0,outreachReadinessScore:0,topTarget:false,scoreReason:"Database scoring required",personalizationNote:"",scoringBreakdown:{partnerFit:{score:0,max:60,items:[]},partnershipOpportunity:{score:0,max:25,items:[]},outreachReadiness:{score:0,max:15,items:[]},adjustments:[],adjustmentTotal:0,preAdjustmentTotal:0,total:0,grade:"D",topTarget:false,partnerType:"Needs Research",reason:"Database scoring required"}}));
