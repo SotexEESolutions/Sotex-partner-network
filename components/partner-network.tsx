@@ -3,7 +3,7 @@
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, ArrowDownToLine, ArrowLeft, ArrowUpRight, BriefcaseBusiness, Building2, Check, ChevronDown, CircleUserRound, Download, FileSpreadsheet, LayoutDashboard, LogOut, Mail, MapPin, Menu, Plus, Radar, Search, ShieldCheck, SlidersHorizontal, Sparkles, Upload, Users, X } from "lucide-react";
+import { Activity, ArrowDownToLine, ArrowLeft, ArrowUpRight, BriefcaseBusiness, Building2, Check, ChevronDown, CircleUserRound, Download, FileSpreadsheet, LayoutDashboard, LogOut, Mail, MapPin, Menu, Plus, Radar, Route, Search, ShieldCheck, SlidersHorizontal, Sparkles, Upload, Users, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { AccessContext, Activity as Outreach, Contact, DiscoveryJob, Firm, FirmCandidate, Grade } from "@/lib/types";
 import { Discovery } from "@/components/discovery";
@@ -20,9 +20,10 @@ import { DISCOVERY_REGIONS } from "@/lib/discovery/markets";
 import { AdminAccess } from "@/components/admin-access";
 import { MyWork } from "@/components/my-work";
 import { canEditFirm } from "@/lib/supabase/access";
+import { RoutePlanner } from "@/components/route-planner";
 
-type View = "Dashboard"|"My Work"|"Discovery"|"Firms"|"Contacts"|"Outreach"|"Imports"|"Admin";
-const nav: {label:View;icon:typeof LayoutDashboard}[]=[{label:"Dashboard",icon:LayoutDashboard},{label:"My Work",icon:BriefcaseBusiness},{label:"Discovery",icon:Radar},{label:"Firms",icon:Building2},{label:"Contacts",icon:Users},{label:"Outreach",icon:Activity},{label:"Imports",icon:FileSpreadsheet}];
+type View = "Dashboard"|"My Work"|"Discovery"|"Firms"|"Routes"|"Contacts"|"Outreach"|"Imports"|"Admin";
+const nav: {label:View;icon:typeof LayoutDashboard}[]=[{label:"Dashboard",icon:LayoutDashboard},{label:"My Work",icon:BriefcaseBusiness},{label:"Discovery",icon:Radar},{label:"Firms",icon:Building2},{label:"Routes",icon:Route},{label:"Contacts",icon:Users},{label:"Outreach",icon:Activity},{label:"Imports",icon:FileSpreadsheet}];
 const regions=DISCOVERY_REGIONS;
 const gradeClass=(g:Grade)=>`grade grade-${g.replace("+","plus").toLowerCase()}`;
 const lastActivity=(firm:Firm)=>[...firm.outreach].sort((a,b)=>b.date.localeCompare(a.date))[0];
@@ -67,6 +68,7 @@ export function PartnerNetwork({initialFirms,initialCandidates,initialJobs,disco
         {view==="My Work"&&<MyWork access={access} firms={firms} candidates={initialCandidates??[]} choose={choose}/>}
         {view==="Discovery"&&<Discovery initialCandidates={initialCandidates} jobs={initialJobs} discoveryFailed={discoveryFailed} onFirmApproved={onFirmApproved} notify={notify} canApprove={access.currentUser.role==="Admin"||access.currentUser.role==="Manager"} firms={firms}/>}
         {view==="Firms"&&<FirmsPage rows={pageRows} total={filtered.length} firmsCount={firms.length} region={region} setRegion={setRegion} grade={grade} setGrade={setGrade} service={service} setService={setService} partnerType={partnerType} setPartnerType={setPartnerType} topTargetsOnly={topTargetsOnly} setTopTargetsOnly={setTopTargetsOnly} needsContactOnly={needsContactOnly} setNeedsContactOnly={setNeedsContactOnly} needsEmailOnly={needsEmailOnly} setNeedsEmailOnly={setNeedsEmailOnly} sort={sort} setSort={setSort} page={page} setPage={setPage} choose={choose} showFilters={showFilters} setShowFilters={setShowFilters} exportCsv={()=>exportCsv(filtered)} savedView={savedView} setSavedView={setSavedView} ownership={ownership} setOwnership={setOwnership} territory={territory} setTerritory={setTerritory} access={access}/>}
+        {view==="Routes"&&<RoutePlanner firms={firms} query={query} access={access} choose={choose} notify={notify}/>}
         {view==="Contacts"&&<ContactsPage contacts={contacts} add={()=>{setModalFirmId(null);setModal("contact")}} choose={choose}/>}
         {view==="Outreach"&&<OutreachPage items={activities} add={()=>{setModalFirmId(null);setModal("outreach")}} choose={choose}/>}
         {view==="Imports"&&<ImportsPage fileRef={fileRef} onFile={e=>{if(e.target.files?.[0])setModal("import")}}/>}
