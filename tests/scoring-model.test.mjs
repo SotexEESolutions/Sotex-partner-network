@@ -15,7 +15,8 @@ function score(input) {
   const readiness=Math.min((input.owner?5:0)+(input.verifiedEmail?5:0)+(input.directChannel?2:0)+(input.personalizable?3:0),15);
   const adjustments=(input.consumerTax?-15:0)+(input.franchise?-20:0)+(input.auditHeavy&&!cas?-10:0)+(input.wealthHeavy?-10:0)+(input.noBusinessClients?-10:0)+(input.inactive?-20:0)+(input.institutionalPayrollAdjustment||0);
   const total=Math.max(0,Math.min(100,fit+opportunity+readiness+adjustments));
-  const grade=total>=90?"A+":total>=80?"A":total>=65?"B":total>=50?"C":"D";
+  const insufficientResearch=!input.smb&&!input.bookkeeping&&!input.accounting&&!input.businessTax&&!input.cas&&!input.advisory&&!input.payrollOffered&&!input.payrollAbsent&&!input.consumerTax&&!input.franchise&&!input.auditHeavy&&!input.wealthHeavy&&!input.noBusinessClients&&!input.inactive;
+  const grade=insufficientResearch?"NR":total>=90?"A+":total>=80?"A":total>=55?"B":total>=35?"C":"D";
   const topTarget=fit>=48&&opportunity>=18;
   const partnerType=total<50||input.consumerTax||input.auditHeavy&&!cas?"Low Fit":input.cpa&&input.smb&&fit>=48?"Strategic CPA Partner":input.payrollAbsent&&businessClients?"Referral Payroll Partner":input.payrollOffered&&recurring?"Wholesale Payroll Partner":input.bookkeeper&&bookkeeping?"Bookkeeping Partner":input.taxPractice&&input.businessTax?"Tax / EA Partner":"Needs Research";
   return {fit,opportunity,readiness,total,grade,topTarget,partnerType};
@@ -49,4 +50,20 @@ test("individual-tax shop with explicit lack of business clients remains Low Fit
 test("unknown payroll earns neither referral nor wholesale opportunity points",()=>{
   const result=score({cpa:true,smb:true,bookkeeping:true,cas:true,idealClients:true,systems:true,targetIndustry:true,owner:true});
   assert.equal(result.fit,52); assert.equal(result.opportunity,0); assert.equal(result.readiness,5); assert.equal(result.topTarget,false);
+});
+
+test("an unresearched firm is Needs Research rather than a false D",()=>{
+  const result=score({owner:true,verifiedEmail:true,directChannel:true});
+  assert.equal(result.total,12);
+  assert.equal(result.grade,"NR");
+});
+
+test("Eastside-style business accounting and payroll services grade as B",()=>{
+  const result=score({bookkeeping:true,businessTax:true,advisory:true,businessClients:true,payrollOffered:true,smallLocal:true,verifiedEmail:true,directChannel:true,personalizable:true});
+  assert.equal(result.fit,28);
+  assert.equal(result.opportunity,20);
+  assert.equal(result.readiness,10);
+  assert.equal(result.total,58);
+  assert.equal(result.grade,"B");
+  assert.equal(result.partnerType,"Wholesale Payroll Partner");
 });

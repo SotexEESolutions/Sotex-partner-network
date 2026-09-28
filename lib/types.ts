@@ -1,4 +1,4 @@
-export type Grade = "A+" | "A" | "B" | "C" | "D";
+export type Grade = "A+" | "A" | "B" | "C" | "D" | "NR";
 export type Priority = "High" | "Medium" | "Low";
 export type TriState = boolean | null;
 export type AppRole = "Admin"|"Manager"|"Rep"|"Researcher";
