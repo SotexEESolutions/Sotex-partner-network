@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react/jsx-no-target-blank */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowUpRight, Check, CheckCircle2, ChevronDown, DatabaseZap, ExternalLink, FileSearch, Globe2, Linkedin, Loader2, Mail, MapPin, Merge, Pause, Play, RotateCw, Search, ShieldCheck, UserSearch, X } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Check, CheckCircle2, ChevronDown, DatabaseZap, ExternalLink, FileSearch, Globe2, Linkedin, Loader2, Mail, MapPin, Merge, Pause, Play, RotateCw, Route, Search, ShieldCheck, UserSearch, X } from "lucide-react";
 import type { CandidateContact, DiscoveryJob, Firm, FirmCandidate } from "@/lib/types";
 import { normalizeDomain } from "@/lib/discovery/core.mjs";
 import { createClient } from "@/lib/supabase/client";
@@ -12,6 +12,7 @@ import { researchCandidateContacts } from "@/lib/discovery/contact-research";
 import { DiscoveryJobForm } from "@/components/discovery-job-form";
 import { PhoneLink } from "@/components/phone-link";
 import { CandidateWebResearchPanel } from "@/components/candidate-web-research-panel";
+import { appendRouteStop, candidateToRouteStop, parseRouteStops, ROUTE_STORAGE_KEY, serializeRouteStops } from "@/lib/routes.mjs";
 
 type Props={
   initialCandidates:FirmCandidate[]|null;
@@ -88,6 +89,15 @@ export function Discovery({initialCandidates,jobs:initialJobs,discoveryFailed,on
   const visible=useMemo(()=>candidates.filter(c=>(status==="All statuses"||c.reviewStatus===status)&&(region==="All regions"||c.region===region)&&`${c.name} ${c.city} ${c.type}`.toLowerCase().includes(query.toLowerCase())),[candidates,status,region,query]);
   const counts={found:candidates.length,new:candidates.filter(c=>c.reviewStatus==="New").length,approved:candidates.filter(c=>c.reviewStatus==="Approved").length,rejected:candidates.filter(c=>c.reviewStatus==="Rejected").length,duplicates:candidates.filter(c=>c.duplicateStatus!=="No Match").length,review:candidates.filter(c=>c.reviewStatus==="Needs Review").length};
   const clearBulkSelection=()=>{setSelected([]);setBulkConfirming(false)};
+  const addCandidateToRoute=(candidate:FirmCandidate)=>{
+    const current=parseRouteStops(window.sessionStorage.getItem(ROUTE_STORAGE_KEY));
+    const result=appendRouteStop(current,candidateToRouteStop(candidate));
+    if(result.status==="missing-address"){notify("A complete street address is required before adding this candidate to a route.");return;}
+    if(result.status==="duplicate"){notify(`${candidate.name} is already on the Route Planner.`);return;}
+    if(result.status==="full"){notify("The Route Planner already has 5 stops. Remove one before adding another.");return;}
+    window.sessionStorage.setItem(ROUTE_STORAGE_KEY,serializeRouteStops(result.stops));
+    notify(`${candidate.name} added to the Route Planner.`);
+  };
 
   const approve=async(candidate:FirmCandidate,announce=true):Promise<boolean>=>{
     if(pendingIds.includes(candidate.id))return false;
@@ -275,6 +285,7 @@ export function Discovery({initialCandidates,jobs:initialJobs,discoveryFailed,on
         const pending=pendingIds.includes(c.id);
         const approvable=canApprove&&(c.reviewStatus==="New"||c.reviewStatus==="Needs Review")&&c.duplicateStatus==="No Match";
         const reviewable=c.reviewStatus==="New"||c.reviewStatus==="Needs Review";
+        const routeable=Boolean(c.address.trim()&&c.city.trim());
         const canResearch=reviewable&&Boolean(c.domain);
         const researching=researchingIds.includes(c.id);
         const researchError=researchErrors[c.id];
@@ -286,7 +297,7 @@ export function Discovery({initialCandidates,jobs:initialJobs,discoveryFailed,on
           <div><span className="type-pill">{c.type}</span><p>{c.description}</p>{c.phone&&<PhoneLink phone={c.phone} prefix="Business" className="phone-label business"/>}</div>
           <div className="source-cell"><b><Globe2 size={13}/>{c.source}</b><a href={c.sourceUrl} target="_blank">View evidence <ArrowUpRight size={11}/></a><span className={`confidence c-${c.confidence.toLowerCase()}`}>{c.confidence} confidence</span></div>
           <div>{c.duplicateStatus==="No Match"?<span className="duplicate-ok"><ShieldCheck size={14}/>No match</span>:<span className="duplicate-warn"><AlertTriangle size={14}/>{c.duplicateStatus}</span>}</div>
-          <div className="candidate-actions">{reviewable?<><button title={approvable?"Approve":"Resolve the duplicate match before approving"} className="approve" disabled={pending||!approvable} onClick={()=>["Complete","Needs Review"].includes(c.webResearchStatus)?approve(c):setApprovalWarningId(c.id)}><Check size={15}/></button>{c.duplicateStatus!=="No Match"&&c.possibleExistingFirmId&&<button title={`Merge into ${firms.find(f=>f.id===c.possibleExistingFirmId)?.name??"matched firm"}`} disabled={pending||!canApprove} onClick={()=>mergeCandidate(c)}><Merge size={15}/></button>}<button title="Reject" disabled={pending} onClick={()=>setReviewStatus(c,"Rejected")}><X size={15}/></button>{c.reviewStatus==="New"&&<button title="Needs review" disabled={pending} onClick={()=>setReviewStatus(c,"Needs Review")}><AlertTriangle size={15}/></button>}<button title={canResearch?"Research contacts":!c.domain?"A company website is required before contact research can run.":"This candidate is not available for contact research."} disabled={!canResearch||researching} onClick={()=>setConfirmingResearchId(c.id)}><UserSearch size={15}/></button></>:<span className={`review-label rl-${c.reviewStatus.toLowerCase()}`}>{c.reviewStatus}</span>}</div>
+          <div className="candidate-actions">{reviewable?<><button title={routeable?"Add to route before approval":"A complete street address is required before routing"} disabled={!routeable} onClick={()=>addCandidateToRoute(c)}><Route size={15}/></button><button title={approvable?"Approve":"Resolve the duplicate match before approving"} className="approve" disabled={pending||!approvable} onClick={()=>["Complete","Needs Review"].includes(c.webResearchStatus)?approve(c):setApprovalWarningId(c.id)}><Check size={15}/></button>{c.duplicateStatus!=="No Match"&&c.possibleExistingFirmId&&<button title={`Merge into ${firms.find(f=>f.id===c.possibleExistingFirmId)?.name??"matched firm"}`} disabled={pending||!canApprove} onClick={()=>mergeCandidate(c)}><Merge size={15}/></button>}<button title="Reject" disabled={pending} onClick={()=>setReviewStatus(c,"Rejected")}><X size={15}/></button>{c.reviewStatus==="New"&&<button title="Needs review" disabled={pending} onClick={()=>setReviewStatus(c,"Needs Review")}><AlertTriangle size={15}/></button>}<button title={canResearch?"Research contacts":!c.domain?"A company website is required before contact research can run.":"This candidate is not available for contact research."} disabled={!canResearch||researching} onClick={()=>setConfirmingResearchId(c.id)}><UserSearch size={15}/></button></>:<span className={`review-label rl-${c.reviewStatus.toLowerCase()}`}>{c.reviewStatus}</span>}</div>
           {approvalWarningId===c.id&&<div className="candidate-approval-warning"><AlertTriangle size={14}/><span>Web research is {c.webResearchStatus.toLowerCase()}. You can approve now, but only currently accepted findings and selected contacts will be copied.</span><button onClick={()=>setApprovalWarningId(null)}>Cancel</button><button className="primary" onClick={()=>{setApprovalWarningId(null);void approve(c)}}>Approve anyway</button></div>}
           {showResearchStrip&&<div className="candidate-research-confirm">{researching?<span className="research-pending"><Loader2 size={13} className="spin"/>Researching contacts…</span>:researchError?<><span className="evidence-status evidence-error">{researchError}</span><button onClick={()=>{setResearchErrors(errs=>{const rest={...errs};delete rest[c.id];return rest;});setConfirmingResearchId(null);}}>Dismiss</button></>:<><span><AlertTriangle size={13}/>Contact research may use Apollo email-enrichment credits. Up to three decision makers will be researched. Direct phone enrichment is not included yet.</span><div className="candidate-research-confirm-actions"><button onClick={()=>setConfirmingResearchId(null)}>Cancel</button><button className="primary" onClick={()=>runResearch(c)}>Start research</button></div></>}</div>}
           <CandidateWebResearchPanel candidate={c} onRefresh={refreshCandidatesAndJobs} notify={notify}/>
